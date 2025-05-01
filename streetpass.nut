@@ -39,6 +39,7 @@ Convars.SetValue("tf_tournament_classlimit_spy", 0); //CFG
     ["sp_demoman_infinitecaber"] = {type = "int", value = 1}, //CFG
     ["sp_infinite_clip"] = {type = "int", value = 1}, //CFG
     ["sp_instant_respawn"] = {type = "int", value = 1}, //CFG
+    ["sp_roundtimer_addtime"] = {type = "int", value = 1}, //CFG
 };
 
 ::streetpassConvars <- streetpassConvarsDefaults;
@@ -428,7 +429,10 @@ printl("StreetPASS v."+VERSION);
 
     //spawn ball and add time
     passtimeLogic.AcceptInput("SpawnBall", "", self, self);
-    timer.AcceptInput("SetTime", "10000", self, self);
+    if(GetSpCvar("sp_roundtimer_addtime"))
+    {
+        timer.AcceptInput("SetTime", "10000", self, self);
+    }
 }
 
 ::PlayerSwapTeam <- function(player)
