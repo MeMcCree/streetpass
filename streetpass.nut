@@ -44,6 +44,9 @@ Convars.SetValue("tf_tournament_classlimit_spy", 0); //CFG
 
 ::streetpassConvars <- streetpassConvarsDefaults;
 
+::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
+gamerules.ValidateScriptScope();
+
 ::SetData <- function(name, value)
 {
     local data = gamerules.GetScriptScope();
@@ -151,9 +154,6 @@ const MAX_WEAPONS = 8;
 ::blueSpawns <- [];
 
 ::packRange <- Convars.GetFloat("tf_passtime_pack_range");
-
-::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
-gamerules.ValidateScriptScope();
 
 ::passtimeLogic <- Entities.FindByClassname(null, "passtime_logic");
 passtimeLogic.KeyValueFromFloat("ball_spawn_countdown", 8);
@@ -353,6 +353,12 @@ printl("StreetPASS v."+VERSION);
                 local dir = ball.GetOrigin() - ent.GetOrigin()
                 if(dir.Length() < 16.0)
                 {
+                    local owner = ball.GetOwner();
+                    if(owner != null)
+                    {
+                        local name = NetProps.GetPropString(owner, "m_szNetname");
+                        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] " + name + " splashed the ball with an arrow!");
+                    }
                     dir.Norm();
                     dir = dir.Scale(192.0);
                     ball.ApplyAbsVelocityImpulse(dir);
@@ -361,9 +367,6 @@ printl("StreetPASS v."+VERSION);
                     ent.Destroy();
                     break;
                 }
-                // local arrow_vel = ent.GetAbsVelocity();
-                // arrow_vel = arrow_vel.Scale(1 / 66);
-                // local projectedPos = ent.GetOrigin() + arrow_vel;
             }
         }
     }
