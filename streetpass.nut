@@ -353,11 +353,12 @@ printl("StreetPASS v."+VERSION);
                 local dir = ball.GetOrigin() - ent.GetOrigin()
                 if(dir.Length() < 16.0)
                 {
-                    local owner = ball.GetOwner();
+                    local owner = ent.GetOwner();
+                    printl(owner);
                     if(owner != null)
                     {
                         local name = NetProps.GetPropString(owner, "m_szNetname");
-                        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] " + name + " splashed the ball with an arrow!");
+                        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 " + name + " splashed the ball with an arrow!");
                     }
                     dir.Norm();
                     dir = dir.Scale(192.0);
