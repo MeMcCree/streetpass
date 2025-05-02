@@ -3,6 +3,8 @@
 
 //TODO:
 //Create a config with cvars that are set in here (mostly talking abt the tournament stuff) - easy
+//Print descriptions and def values for convars showing up when using sp_help
+//Create functions for convars so they are more user friendly to type in console
 
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
@@ -28,7 +30,7 @@ Convars.SetValue("tf_tournament_classlimit_scout", 0); //CFG
 Convars.SetValue("tf_tournament_classlimit_sniper", 0); //CFG
 Convars.SetValue("tf_tournament_classlimit_spy", 0); //CFG
 
-// Passtime convars
+// StreetPASS convars
 ::streetpassConvarsDefaults <- {
     ["sp_medic_replicates_democharge"] = {type = "int", value = 0}, //CFG
     ["sp_medic_replicates_caber"] = {type = "int", value = 1}, //CFG
