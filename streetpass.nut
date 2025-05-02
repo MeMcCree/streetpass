@@ -2,48 +2,32 @@
 //maps using this gamemode use the sp_ prefix
 
 //TODO:
-//Create a config with cvars that are set in here (mostly talking abt the tournament stuff) - easy
-//Print descriptions and def values for convars showing up when using sp_help
-//Create functions for convars so they are more user friendly to type in console
+//infinite ammo reset clip on weapons
+//sp_roundtimer_addtime goal stuff
+//sp_roundtimer_addtime change from 1 to time in sec to add
+//swap zone indicator like on goals (there are examples on wiki on how to have stuff display for a surten player)
+//make the cooldown on killbinds smaller (if possible)
 
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
-Convars.SetValue("tf_weapon_criticals", 0); //CFG
-Convars.SetValue("mp_scrambleteams_auto", 0); //CFG
-Convars.SetValue("mp_autoteambalance", 0); //CFG
 Convars.SetValue("tf_passtime_ball_reset_time", 99999);
 Convars.SetValue("tf_passtime_powerball_threshold", 10000);
 Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
-Convars.SetValue("tf_passtime_throwarc_demoman", 0.1); //CFG
-Convars.SetValue("tf_passtime_throwspeed_demoman", 800.0); //CFG
-Convars.SetValue("tf_passtime_throwspeed_medic", 835.0); //CFG
-
-Convars.SetValue("tf_tournament_classlimit_soldier", 2); //CFG
-Convars.SetValue("tf_tournament_classlimit_demoman", 1); //CFG
-Convars.SetValue("tf_tournament_classlimit_medic", 1); //CFG
-Convars.SetValue("tf_tournament_classlimit_engineer", 0); //CFG
-Convars.SetValue("tf_tournament_classlimit_heavy", 0); //CFG
-Convars.SetValue("tf_tournament_classlimit_pyro", 0); //CFG
-Convars.SetValue("tf_tournament_classlimit_scout", 0); //CFG
-Convars.SetValue("tf_tournament_classlimit_sniper", 0); //CFG
-Convars.SetValue("tf_tournament_classlimit_spy", 0); //CFG
 
 // StreetPASS convars
-::streetpassConvarsDefaults <- {
-    ["sp_medic_replicates_democharge"] = {type = "int", value = 0}, //CFG
-    ["sp_medic_replicates_caber"] = {type = "int", value = 1}, //CFG
-    ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1}, //CFG
-    ["sp_demoman_minchargepercentage"] = {type = "float", value = 75.0}, //CFG
-    ["sp_demoman_infinitecaber"] = {type = "int", value = 1}, //CFG
-    ["sp_infinite_clip"] = {type = "int", value = 1}, //CFG
-    ["sp_instant_respawn"] = {type = "int", value = 1}, //CFG
-    ["sp_roundtimer_addtime"] = {type = "int", value = 1}, //CFG
-    ["sp_top_protection_time"] = {type = "float", value = 20.0}, //CFG
+::streetpassConvars <- {
+    ["sp_medic_replicates_democharge"] = {type = "int", value = 0, desc = "Allows the medic to mimic demomans shield charge while holding the ball", def = 0},
+    ["sp_medic_replicates_caber"] = {type = "int", value = 1, desc = "Allows the medic to mimic demomans caber jumps while holding the ball", def = 1},
+    ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
+    ["sp_demoman_minchargepercentage"] = {type = "float", value = 75.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 75.0},
+    ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1}, 
+    ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
+    ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
+    ["sp_roundtimer_addtime"] = {type = "float", value = 0, desc = "The amount of time to add after scoring or swaping in seconds", def = 0},
+    ["sp_top_protection_time"] = {type = "float", value = 20.0, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 20.0},
 };
-
-::streetpassConvars <- streetpassConvarsDefaults;
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
 gamerules.ValidateScriptScope();
@@ -67,22 +51,33 @@ gamerules.ValidateScriptScope();
 {
     foreach (key, val in streetpassConvars)
     {
-        local text = key + " = " + val.value;
-        if(val.value != streetpassConvarsDefaults[key].value)
+        error(key + " = " + val.value);
+        if(val.value != val.def)
         {
-            text += " ( def. \"" + streetpassConvarsDefaults[key].value + "\" )";
+            print(" ( def. \"" + val.def + "\" )");
         }
-        printl(text);
+        printl("\n" + val.desc + "\n")
     }
 }
 
 ::ResetSpCvars <- function()
 {
-    streetpassConvars = streetpassConvarsDefaults;
+    foreach (key, val in streetpassConvars)
+    {
+        val.value = val.def;
+    }
 }
 
 ::sp_reset_convars <- ResetSpCvars;
-::sp_help <- PrintSpCvars;
+::sp_help <- function() 
+{ 
+    printl("to change a value of a convar type: script sp_convar(new_value)\n");
+    error("sp_help\n");
+    printl("displays help for avaible convars\n");
+    error("sp_reset_convars\n");
+    printl("resets the convars to default values\n");
+    PrintSpCvars(); 
+}
 
 ::SetSpCvar <- function(name, value)
 {
@@ -111,6 +106,11 @@ gamerules.ValidateScriptScope();
             Assert(0, "Unreachable");
         }
     }
+
+    // printl("-----");
+    // printl(streetpassConvars[name].value);
+    // printl(streetpassConvars[name].def + " = def");
+    // printl("-----");
 }
 
 ::GetSpCvar <- function(name)
@@ -187,7 +187,10 @@ const STAT_LENGTH = 6;
 ::sideSwaps <- 0;
 //------------------------
 
-printl("StreetPASS v."+VERSION);
+printl("------------------------");
+printl("\nStreetPASS v."+VERSION);
+printl("for info on streetpass convars type: script sp_help()\n");
+printl("------------------------");
 
 ::SetStat <- function (playerIndex, stat, val)
 {
@@ -321,7 +324,15 @@ printl("StreetPASS v."+VERSION);
 
         if(!self.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE) && charge < GetSpCvar("sp_demoman_minchargepercentage"))
         {
-            NetProps.SetPropFloat(self, "m_Shared.m_flChargeMeter", GetSpCvar("sp_demoman_minchargepercentage"));
+            local mincharge = GetSpCvar("sp_demoman_minchargepercentage");
+            if(mincharge < 0)
+            {
+                mincharge = 0
+            }else if(mincharge > 100)
+            {
+                mincharge = 100
+            }
+            NetProps.SetPropFloat(self, "m_Shared.m_flChargeMeter", mincharge);
         }
 
         if(GetSpCvar("sp_medic_replicates_democharge") && self.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE))
