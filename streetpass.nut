@@ -394,6 +394,68 @@ printl("------------------------");
     return -1;
 }
 
+::min <- function(a, b)
+{
+    if(a < b)
+    {
+        return a;
+    } else
+    {
+        return b;
+    }
+}
+
+::max <- function(a, b)
+{
+    if(a > b)
+    {
+        return a;
+    } else
+    {
+        return b;
+    }
+}
+
+
+::PlayerLeaveTopAreaThink <- function ()
+{
+
+    local plmins = self.GetOrigin() + self.GetPlayerMins();
+    local plmaxs = self.GetOrigin() + self.GetPlayerMaxs();
+
+    local mins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
+    local maxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
+
+    local x = max(plmins.x, mins.x);
+    local xx = min(plmaxs.x, maxs.x);
+    local y = max(plmins.y, mins.y);
+    local yy = min(plmaxs.y, maxs.y);
+    local z = max(plmins.z, mins.z);
+    local zz = min(plmaxs.z, maxs.z);
+
+    if(zz < z || yy < y || xx < x)
+    {
+        AddThinkToEnt(self, "PlayerThink");
+        return -1;
+    }
+
+    if(self.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE))
+    {
+        self.RemoveCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE);
+    }
+
+    NetProps.SetPropEntity(self, "m_hGroundEntity", null);
+    self.RemoveFlag(Constants.FPlayer.FL_ONGROUND);
+    local pos = topAreaTrigger.GetCenter();
+    local vel = self.GetOrigin() - pos;
+    vel.Norm();
+    vel = vel.Scale(9999);
+    vel.z = self.GetAbsVelocity().z;
+    self.SetAbsVelocity(vel);
+
+    return -1;
+}
+
 ::SwapSides <- function()
 {
     if(activator.GetClassname() != "passtime_ball")
@@ -502,15 +564,7 @@ printl("------------------------");
 {
     if(activator.GetTeam() != attackerTeam)
     {
-        NetProps.SetPropEntity(activator, "m_hGroundEntity", null);
-        activator.RemoveFlag(Constants.FPlayer.FL_ONGROUND);
-
-        local pos = topAreaTrigger.GetCenter();
-        local vel = activator.GetOrigin() - pos;
-        vel.Norm();
-        vel = vel.Scale(999);
-        vel.z = activator.GetAbsVelocity().z;
-        activator.SetAbsVelocity(vel);
+        AddThinkToEnt(activator, "PlayerLeaveTopAreaThink");
     }
 }
 
