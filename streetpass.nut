@@ -2,11 +2,7 @@
 //maps using this gamemode use the sp_ prefix
 
 //TODO:
-//infinite ammo reset clip on weapons
-//sp_roundtimer_addtime goal stuff
-//sp_roundtimer_addtime change from 1 to time in sec to add
 //swap zone indicator like on goals (there are examples on wiki on how to have stuff display for a surten player)
-//make the cooldown on killbinds smaller (if possible)
 
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
@@ -25,7 +21,7 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1}, 
     ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
-    ["sp_roundtimer_addtime"] = {type = "float", value = 0, desc = "The amount of time to add after scoring or swaping in seconds", def = 0},
+    ["sp_roundtimer_addtime"] = {type = "float", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
     ["sp_top_protection_time"] = {type = "float", value = 20.0, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 20.0},
 };
 
@@ -106,11 +102,6 @@ gamerules.ValidateScriptScope();
             Assert(0, "Unreachable");
         }
     }
-
-    // printl("-----");
-    // printl(streetpassConvars[name].value);
-    // printl(streetpassConvars[name].def + " = def");
-    // printl("-----");
 }
 
 ::GetSpCvar <- function(name)
@@ -140,7 +131,7 @@ if(previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.4.8";
+const VERSION = "1.4.9";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -181,7 +172,8 @@ const STAT_STEAL = 2;
 const STAT_INTERCEPT = 3;
 const STAT_SWAP = 4;
 const STAT_KILLSTREAK = 5;
-const STAT_LENGTH = 6;
+const STAT_NEXTSUICIDE = 6;
+const STAT_LENGTH = 7;
 
 ::playerTable <- {}
 ::sideSwaps <- 0;
@@ -279,7 +271,7 @@ printl("------------------------");
     {
         if(GetSpCvar("sp_infinite_clip") && weapon.UsesClipsForAmmo1() && (player_class == Constants.ETFClass.TF_CLASS_DEMOMAN || player_class == Constants.ETFClass.TF_CLASS_SOLDIER))
         {
-            weapon.SetClip1(20);
+            weapon.SetClip1(weapon.GetMaxClip1());
         }
         
         local ammo_type = NetProps.GetPropInt(weapon, "m_iPrimaryAmmoType");
@@ -414,7 +406,6 @@ printl("------------------------");
         return;
     }
 
-    printl("SWAP SIDES");
 
     //set varibles
     local hold = attackerTeam;
@@ -469,7 +460,7 @@ printl("------------------------");
     passtimeLogic.AcceptInput("SpawnBall", "", self, self);
     if(GetSpCvar("sp_roundtimer_addtime"))
     {
-        timer.AcceptInput("SetTime", "10000", self, self);
+        timer.AcceptInput("AddTime", GetSpCvar("sp_roundtimer_addtime").tostring(), self, self);
     }
 }
 
@@ -577,6 +568,17 @@ getroottable()[EventsID] <-
                 "\x07"+team+pName+"\x07FFFF00 | Scores: "+scores+"\x07FFFF00 | Assists: "+assists+"\x07FFFF00 | Intercepts: "+intercepts+"\x07FFFF00 | Steals: "+steals+" | Swaps: "+swaps);
         }
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FFFF00Side swaps: "+sideSwaps);
+    
+        for (local i = 1; i <= MaxPlayers; i++)
+        {
+            local player = PlayerInstanceFromIndex(i)
+            if (IsPlayerValid(player) == false) { continue; }
+
+            if(player.GetTeam() != winnerTeam)
+            {
+                player.SetHealth(player.GetMaxHealth());
+            }
+        }
     }
 
     OnGameEvent_post_inventory_application = function (params) {
@@ -722,6 +724,7 @@ getroottable()[EventsID] <-
             if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
             {
                 topAreaTrigger.AcceptInput("Disable", "", null, null);
+                topProtected = false;
             }
         }
     }
@@ -738,6 +741,11 @@ getroottable()[EventsID] <-
         // scorer (short)
         // assister (short)
         // points (byte)
+        if(GetSpCvar("sp_roundtimer_addtime"))
+        {
+            timer.AcceptInput("AddTime", GetSpCvar("sp_roundtimer_addtime").tostring(), self, self);
+        }
+
         local scorer = PlayerInstanceFromIndex(params.scorer);
         local sName = NetProps.GetPropString(scorer, "m_szNetname");
         IncStat(params.scorer, STAT_SCORE);
@@ -843,6 +851,10 @@ getroottable()[EventsID] <-
                     if(player.GetTeam() == attackerTeam)
                     {
                         numInside++;
+                    } else if(player.GetTeam() == defenseTeam)
+                    {
+                        player.ForceRespawn();
+                        ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is protected!");
                     }
                 }
             }
