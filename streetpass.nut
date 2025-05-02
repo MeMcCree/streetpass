@@ -1,11 +1,8 @@
-//Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy
+//Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
 //TODO:
-//Keep kilstreaks after death (use the stat system) - easy
 //Create a config with cvars that are set in here (mostly talking abt the tournament stuff) - easy
-//cvars for:
-//some other stuff
 
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
@@ -19,6 +16,7 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 Convars.SetValue("tf_passtime_throwarc_demoman", 0.1); //CFG
 Convars.SetValue("tf_passtime_throwspeed_demoman", 800.0); //CFG
+Convars.SetValue("tf_passtime_throwspeed_medic", 835.0); //CFG
 
 Convars.SetValue("tf_tournament_classlimit_soldier", 2); //CFG
 Convars.SetValue("tf_tournament_classlimit_demoman", 1); //CFG
@@ -40,6 +38,7 @@ Convars.SetValue("tf_tournament_classlimit_spy", 0); //CFG
     ["sp_infinite_clip"] = {type = "int", value = 1}, //CFG
     ["sp_instant_respawn"] = {type = "int", value = 1}, //CFG
     ["sp_roundtimer_addtime"] = {type = "int", value = 1}, //CFG
+    ["sp_top_protection_time"] = {type = "float", value = 20.0}, //CFG
 };
 
 ::streetpassConvars <- streetpassConvarsDefaults;
@@ -145,10 +144,14 @@ const MAX_WEAPONS = 8;
 ::attackerTeam <- BLUE;
 ::defenseTeam <- RED;
 ::jackTeam <- BLUE;
+::ballSpawned <- false;
+::ballSpawnTime <- 0.0;
+::topProtected <- false;
 
 ::redGoal <- Entities.FindByName(null, "red_goal");
 ::blueGoal <- Entities.FindByName(null, "blue_goal");
 ::swapZone <- Entities.FindByName(null, "streetpass_swapzone");
+::topAreaTrigger <- Entities.FindByName(null, "top_area_trigger");
 
 ::redSpawns <- [];
 ::blueSpawns <- [];
@@ -175,7 +178,8 @@ const STAT_ASSIST = 1;
 const STAT_STEAL = 2;
 const STAT_INTERCEPT = 3;
 const STAT_SWAP = 4;
-const STAT_LENGTH = 5;
+const STAT_KILLSTREAK = 5;
+const STAT_LENGTH = 6;
 
 ::playerTable <- {}
 ::sideSwaps <- 0;
@@ -197,7 +201,7 @@ printl("StreetPASS v."+VERSION);
     playerTable[playerIndex][stat] = val;
 }
 
-::IncStat <- function (playerIndex, stat)
+::IncStat <- function (playerIndex, stat, by=1)
 {
     if(!(playerIndex in playerTable))
     {
@@ -208,7 +212,7 @@ printl("StreetPASS v."+VERSION);
         }
     }
 
-    playerTable[playerIndex][stat] += 1;
+    playerTable[playerIndex][stat] += by;
 }
 
 ::GetStat <- function (playerIndex, stat)
@@ -242,6 +246,9 @@ printl("StreetPASS v."+VERSION);
 
 ::PlayerThink <- function ()
 {
+    //Set killstreak
+    NetProps.SetPropIntArray(self, "m_Shared.m_nStreaks", GetStat(self, STAT_KILLSTREAK), 0);
+
     //instant respawn
     if(!self.IsAlive() && (GetSpCvar("sp_instant_respawn") > 1 || GetSpCvar("sp_instant_respawn") && instantRespawn))
     {
@@ -343,6 +350,13 @@ printl("StreetPASS v."+VERSION);
     //crossbow bolt ball collisions
     if(self.entindex() == 1)
     {
+        if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0 && ballSpawned && topProtected && Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time"))
+        {
+            topAreaTrigger.AcceptInput("Disable", "", null, null);
+            topProtected = false;
+            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
+        }
+
         local ent = null;
         while(ent = Entities.FindByClassname(ent, "tf_projectile_healing_bolt"))
         {
@@ -395,7 +409,14 @@ printl("StreetPASS v."+VERSION);
     defenseTeam = hold;
     jackTeam = 0;
     sideSwaps += 1;
-    instantRespawn = true; 
+    instantRespawn = true;
+    ballSpawned = false;
+
+    if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+    {
+        topProtected = true;
+        topAreaTrigger.AcceptInput("Enable", "", null, null);
+    }
 
     //swap spawn locations
     for (local i = 0; i < blueSpawns.len(); i++)
@@ -454,6 +475,41 @@ printl("StreetPASS v."+VERSION);
     player.ForceChangeTeam(newTeam, true);
 }
 
+::PlayerLeftTop <- function()
+{
+    if(matchEnded)
+    {
+        return;
+    }
+
+    if(activator.GetTeam() != attackerTeam)
+    {
+        return;
+    }
+
+    if(ballSpawned)
+    {
+        topAreaTrigger.AcceptInput("Disable", "", null, null);
+        topProtected = false;
+    }
+}
+
+::PlayerEnteredTop <- function()
+{
+    if(activator.GetTeam() != attackerTeam)
+    {
+        NetProps.SetPropEntity(activator, "m_hGroundEntity", null);
+        activator.RemoveFlag(Constants.FPlayer.FL_ONGROUND);
+
+        local pos = topAreaTrigger.GetCenter();
+        local vel = activator.GetOrigin() - pos;
+        vel.Norm();
+        vel = vel.Scale(999);
+        vel.z = activator.GetAbsVelocity().z;
+        activator.SetAbsVelocity(vel);
+    }
+}
+
 local EventsID = UniqueString()
 getroottable()[EventsID] <-
 {
@@ -477,6 +533,12 @@ getroottable()[EventsID] <-
 
         matchEnded = true;
         winnerTeam = params.winning_team;
+
+        if(topAreaTrigger != null)
+        {
+            topAreaTrigger.AcceptInput("Disable", "", null, null);
+            topProtected = false;
+        }
 
         //Print Player stats
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x07FFFF00Stats: ");
@@ -593,6 +655,7 @@ getroottable()[EventsID] <-
     {
         local victim = params.const_entity;
         local attacker = params.attacker;
+
         if(victim.GetClassname() == "passtime_ball" && IsPlayerValid(attacker))
         {
             jackTeam = 0;
@@ -638,8 +701,16 @@ getroottable()[EventsID] <-
 
     OnGameEvent_pass_get = function(params)
     {
-        jackTeam = PlayerInstanceFromIndex(params.owner).GetTeam();
-        // isSplashed = false;
+        local owner = PlayerInstanceFromIndex(params.owner);
+        jackTeam = owner.GetTeam();
+        
+        if(owner.GetTeam() == defenseTeam)
+        {
+            if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+            {
+                topAreaTrigger.AcceptInput("Disable", "", null, null);
+            }
+        }
     }
 
     OnGameEvent_pass_free = function(params)
@@ -658,8 +729,14 @@ getroottable()[EventsID] <-
         local sName = NetProps.GetPropString(scorer, "m_szNetname");
         IncStat(params.scorer, STAT_SCORE);
 
-        NetProps.SetPropIntArray(scorer, "m_Shared.m_nStreaks", NetProps.GetPropIntArray(scorer, "m_Shared.m_nStreaks", 0) + 2, 0);
-        instantRespawn = true; 
+        IncStat(scorer, STAT_KILLSTREAK, 2);
+        instantRespawn = true;
+        ballSpawned = false;
+        if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+        {
+            topProtected = true;
+            topAreaTrigger.AcceptInput("Enable", "", null, null);
+        }
 
         if(params.assister < 0)
         {
@@ -670,7 +747,7 @@ getroottable()[EventsID] <-
             local aName = NetProps.GetPropString(assister, "m_szNetname");
             IncStat(params.assister, STAT_ASSIST);
 
-            NetProps.SetPropIntArray(assister, "m_Shared.m_nStreaks", NetProps.GetPropIntArray(assister, "m_Shared.m_nStreaks", 0) + 1, 0);
+            IncStat(assister, STAT_KILLSTREAK, 1);
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+sName+"\x01 Scored! Assisted by "+aName);
         }
@@ -721,6 +798,49 @@ getroottable()[EventsID] <-
         if(params.sound == "Passtime.BallSpawn")
         {
             instantRespawn = false;
+
+            if(topAreaTrigger == null || GetSpCvar("sp_top_protection_time") == 0)
+            {
+                return;
+            }
+
+            ballSpawned = true;
+            ballSpawnTime = Time();
+            local numAttackers = 0;
+            local numInside = 0;
+            for(local i = 1; i <= MaxPlayers; i++)
+            {
+                local player = PlayerInstanceFromIndex(i);
+                if(!IsPlayerValid(player))
+                {
+                    continue;
+                }
+
+                if(player.GetTeam() == attackerTeam)
+                {
+                    numAttackers++;
+                }
+
+                local pos = player.GetOrigin();
+                local mins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
+                local maxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
+                
+                if(pos.z >= mins.z && pos.x >= mins.x && pos.y >= mins.y && pos.x <= maxs.x && pos.y <= maxs.y)
+                {
+                    if(player.GetTeam() == attackerTeam)
+                    {
+                        numInside++;
+                    }
+                }
+            }
+            if(!numInside || numInside < numAttackers)
+            {
+                topAreaTrigger.AcceptInput("Disable", "", null, null);
+                topProtected = false;
+            } else {
+                topAreaTrigger.AcceptInput("Enable", "", null, null);
+                topProtected = true;
+            }
         }
     }
 }
