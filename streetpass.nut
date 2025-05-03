@@ -169,7 +169,7 @@ const STAT_STEAL = 2;
 const STAT_INTERCEPT = 3;
 const STAT_SWAP = 4;
 const STAT_KILLSTREAK = 5;
-const STAT_NEXTSUICIDE = 6;
+const STAT_BLOCKDAMAGETICK = 6;
 const STAT_LENGTH = 7;
 
 ::playerTable <- {}
@@ -749,6 +749,22 @@ getroottable()[EventsID] <-
             if(victim.GetTeam() != 0)
             {
                 FireScriptEvent("sp_pass_splashed", {splasher = attacker.entindex(), old_ball = victim.GetTeam()});
+            }
+            return;
+        }
+
+        if(IsPlayerValid(attacker) && GetStat(attacker, STAT_BLOCKDAMAGETICK) == GetFrameCount())
+        {
+            params.damage = 0;
+            params.early_out = true;
+            return;
+        }
+
+        if(victim.GetName() == "block_caber")
+        {
+            if(IsPlayerValid(attacker))
+            {
+                SetStat(attacker, STAT_BLOCKDAMAGETICK, GetFrameCount());
             }
             return;
         }
