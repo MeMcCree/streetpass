@@ -1,9 +1,6 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-//TODO:
-//swap zone indicator like on goals (there are examples on wiki on how to have stuff display for a surten player)
-
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -131,7 +128,7 @@ if(previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.4.9";
+const VERSION = "1.4.10";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -416,10 +413,8 @@ printl("------------------------");
     }
 }
 
-
 ::PlayerLeaveTopAreaThink <- function ()
 {
-
     local plmins = self.GetOrigin() + self.GetPlayerMins();
     local plmaxs = self.GetOrigin() + self.GetPlayerMaxs();
 
@@ -468,6 +463,7 @@ printl("------------------------");
         return;
     }
 
+    FireScriptEvent("sp_swap_sides", {swaper = jackOwner, old_defense = defenseTeam, old_attack = attackerTeam});
 
     //set varibles
     local hold = attackerTeam;
@@ -575,6 +571,37 @@ getroottable()[EventsID] <-
     OnGameEvent_scorestats_accumulated_update = function(params) { delete getroottable()[EventsID] }
 
     ////////// Add your events here //////////////
+    //sp_swap_sides {swaper - player index, old_defense - team number, old_attack - team number}, 
+    //sp_pass_intercept {victim - player index, intercepter - player index}, 
+    //sp_pass_spawn {}, 
+    //sp_pass_splashed {splasher - player index, old_ball - team number} 
+    OnScriptEvent_sp_swap_sides = function (params) {
+        printl("----SWAP SIDES EVENT----");
+        printl(params.swaper);
+        printl(params.old_defense);
+        printl(params.old_attack);
+        printl("----   ----");
+    }
+
+    OnScriptEvent_sp_pass_intercept = function (params) {
+        printl("----PASS INTERCEPT EVENT----");
+        printl(params.victim);
+        printl(params.intercepter);
+        printl("----   ----");
+    }
+
+    OnScriptEvent_sp_pass_spawn = function (params) {
+        printl("----PASS SPAWN EVENT----");
+        printl("----   ----");
+    }
+
+    OnScriptEvent_sp_pass_splashed = function (params) {
+        printl("----PASS SPLASHED EVENT----");
+        printl(params.splasher);
+        printl(params.old_ball);
+        printl("----   ----");
+    }
+
 
     OnGameEvent_player_spawn = function(params)
     {
@@ -728,6 +755,11 @@ getroottable()[EventsID] <-
         if(victim.GetClassname() == "passtime_ball" && IsPlayerValid(attacker))
         {
             jackTeam = 0;
+            if(victim.GetTeam() != 0)
+            {
+                FireScriptEvent("sp_pass_splashed", {splasher = attacker.entindex(), old_ball = victim.GetTeam()});
+            }
+            return;
         }
 
         if(!IsPlayerValid(victim) || !GetSpCvar("sp_medic_replicates_blast_jump"))
@@ -844,6 +876,7 @@ getroottable()[EventsID] <-
             local pName = NetProps.GetPropString(passer, "m_szNetname");
             local cName = NetProps.GetPropString(catcher, "m_szNetname");
             IncStat(params.catcher, STAT_INTERCEPT);
+            FireScriptEvent("sp_pass_intercept", {victim = params.passer, intercepter = params.catcher});
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
@@ -873,6 +906,7 @@ getroottable()[EventsID] <-
         if(params.sound == "Passtime.BallSpawn")
         {
             instantRespawn = false;
+            FireScriptEvent("sp_pass_spawn", {});
 
             if(topAreaTrigger == null || GetSpCvar("sp_top_protection_time") == 0)
             {
