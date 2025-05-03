@@ -270,6 +270,11 @@ printl("------------------------");
         {
             weapon.SetClip1(weapon.GetMaxClip1());
         }
+
+        if(GetSpCvar("sp_infinite_clip") && weapon.GetClassname() == "tf_weapon_particle_cannon")
+        {
+            NetProps.SetPropFloat(weapon, "m_flEnergy", 100.0);
+        }
         
         local ammo_type = NetProps.GetPropInt(weapon, "m_iPrimaryAmmoType");
         if(ammo_type > 0)
@@ -356,6 +361,7 @@ printl("------------------------");
         {
             topAreaTrigger.AcceptInput("Disable", "", null, null);
             topProtected = false;
+            FireScriptEvent("sp_top_protection_disabled", {});
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
         }
 
@@ -478,6 +484,7 @@ printl("------------------------");
     {
         topProtected = true;
         topAreaTrigger.AcceptInput("Enable", "", null, null);
+        FireScriptEvent("sp_top_protection_enabled", {});
     }
 
     //swap spawn locations
@@ -553,6 +560,7 @@ printl("------------------------");
     {
         topAreaTrigger.AcceptInput("Disable", "", null, null);
         topProtected = false;
+        FireScriptEvent("sp_top_protection_disabled", {});
     }
 }
 
@@ -602,6 +610,15 @@ getroottable()[EventsID] <-
         printl("----   ----");
     }
 
+    OnScriptEvent_sp_top_protection_enabled = function (params) {
+        printl("----TOP PROTECTION ENABLED EVENT----");
+        printl("----   ----");
+    }
+
+    OnScriptEvent_sp_top_protection_disabled = function (params) {
+        printl("----TOP PROTECTION DISABLED EVENT----");
+        printl("----   ----");
+    }
 
     OnGameEvent_player_spawn = function(params)
     {
@@ -623,6 +640,7 @@ getroottable()[EventsID] <-
         {
             topAreaTrigger.AcceptInput("Disable", "", null, null);
             topProtected = false;
+            FireScriptEvent("sp_top_protection_disabled", {});
         }
 
         //Print Player stats
@@ -737,6 +755,13 @@ getroottable()[EventsID] <-
                 PlayerSwapTeam(player);
             }
         }
+
+        if(topAreaTrigger != null)
+        {
+            topAreaTrigger.AcceptInput("Enable", "", null, null);
+            topProtected = true;
+            FireScriptEvent("sp_top_protection_enabled", {});
+        }
     }
 
     //redo vars on round restart
@@ -811,6 +836,7 @@ getroottable()[EventsID] <-
             {
                 topAreaTrigger.AcceptInput("Disable", "", null, null);
                 topProtected = false;
+                FireScriptEvent("sp_top_protection_disabled", {});
             }
         }
     }
@@ -843,6 +869,7 @@ getroottable()[EventsID] <-
         {
             topProtected = true;
             topAreaTrigger.AcceptInput("Enable", "", null, null);
+            FireScriptEvent("sp_top_protection_enabled", {});
         }
 
         if(params.assister < 0)
@@ -950,9 +977,11 @@ getroottable()[EventsID] <-
             {
                 topAreaTrigger.AcceptInput("Disable", "", null, null);
                 topProtected = false;
+                FireScriptEvent("sp_top_protection_disabled", {});
             } else {
                 topAreaTrigger.AcceptInput("Enable", "", null, null);
                 topProtected = true;
+                FireScriptEvent("sp_top_protection_enabled", {});
             }
         }
     }
