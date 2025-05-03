@@ -583,42 +583,8 @@ getroottable()[EventsID] <-
     //sp_pass_intercept {victim - player index, intercepter - player index}, 
     //sp_pass_spawn {}, 
     //sp_pass_splashed {splasher - player index, old_ball - team number} 
-    OnScriptEvent_sp_swap_sides = function (params) {
-        printl("----SWAP SIDES EVENT----");
-        printl(params.swaper);
-        printl(params.old_defense);
-        printl(params.old_attack);
-        printl("----   ----");
-    }
-
-    OnScriptEvent_sp_pass_intercept = function (params) {
-        printl("----PASS INTERCEPT EVENT----");
-        printl(params.victim);
-        printl(params.intercepter);
-        printl("----   ----");
-    }
-
-    OnScriptEvent_sp_pass_spawn = function (params) {
-        printl("----PASS SPAWN EVENT----");
-        printl("----   ----");
-    }
-
-    OnScriptEvent_sp_pass_splashed = function (params) {
-        printl("----PASS SPLASHED EVENT----");
-        printl(params.splasher);
-        printl(params.old_ball);
-        printl("----   ----");
-    }
-
-    OnScriptEvent_sp_top_protection_enabled = function (params) {
-        printl("----TOP PROTECTION ENABLED EVENT----");
-        printl("----   ----");
-    }
-
-    OnScriptEvent_sp_top_protection_disabled = function (params) {
-        printl("----TOP PROTECTION DISABLED EVENT----");
-        printl("----   ----");
-    }
+    //OnScriptEvent_sp_top_protection_enabled {} 
+    //OnScriptEvent_sp_top_protection_disabled {} 
 
     OnGameEvent_player_spawn = function(params)
     {
