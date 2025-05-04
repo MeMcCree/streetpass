@@ -19,7 +19,7 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
-    ["sp_top_protection_time"] = {type = "int", value = 20, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 20},
+    ["sp_top_protection_time"] = {type = "int", value = 10, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 10},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
