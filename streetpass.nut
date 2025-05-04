@@ -527,11 +527,17 @@ printl("------------------------");
         });
 
     //spawn ball and add time
-    passtimeLogic.AcceptInput("SpawnBall", "", self, self);
     if(GetSpCvar("sp_roundtimer_addtime"))
     {
         timer.AcceptInput("AddTime", GetSpCvar("sp_roundtimer_addtime").tostring(), self, self);
+        NetProps.SetPropInt(gamerules, "m_iRoundState", Constants.ERoundState.GR_STATE_STALEMATE);
+        passtimeLogic.AcceptInput("SpawnBall", "", self, self);
+        NetProps.SetPropInt(gamerules, "m_iRoundState", Constants.ERoundState.GR_STATE_RND_RUNNING);
+        passtimeLogic.AcceptInput("SpawnBall", "", self, self);
+        return;
     }
+
+    passtimeLogic.AcceptInput("SpawnBall", "", self, self);
 }
 
 ::PlayerSwapTeam <- function(player)
