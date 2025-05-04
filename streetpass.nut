@@ -530,11 +530,6 @@ printl("------------------------");
     if(GetSpCvar("sp_roundtimer_addtime"))
     {
         timer.AcceptInput("AddTime", GetSpCvar("sp_roundtimer_addtime").tostring(), self, self);
-        NetProps.SetPropInt(gamerules, "m_iRoundState", Constants.ERoundState.GR_STATE_STALEMATE);
-        passtimeLogic.AcceptInput("SpawnBall", "", self, self);
-        NetProps.SetPropInt(gamerules, "m_iRoundState", Constants.ERoundState.GR_STATE_RND_RUNNING);
-        passtimeLogic.AcceptInput("SpawnBall", "", self, self);
-        return;
     }
 
     passtimeLogic.AcceptInput("SpawnBall", "", self, self);
@@ -597,6 +592,23 @@ getroottable()[EventsID] <-
     //OnScriptEvent_sp_top_protection_enabled {} 
     //OnScriptEvent_sp_top_protection_disabled {} 
 
+    OnGameEvent_player_death = function(params)
+    {
+        local weapon = Entities.FindByClassname(null, "tf_dropped_weapon");
+        if(weapon)
+            weapon.Destroy();
+
+        local ammo = Entities.FindByClassname(null, "tf_ammo_pack");
+        while(ammo)
+        {
+            if(ammo.GetOwner() == PlayerInstanceFromIndex(params.victim_entindex))
+            {
+                ammo.Destroy();
+                break;
+            }
+        }            
+    }
+
     OnGameEvent_player_spawn = function(params)
     {
         local player = GetPlayerFromUserID(params.userid);
@@ -620,19 +632,33 @@ getroottable()[EventsID] <-
             FireScriptEvent("sp_top_protection_disabled", {});
         }
 
+        //Sort players by team
+        local players = [];
+        for (local i = 1; i <= MaxPlayers; i++) {
+            local player = PlayerInstanceFromIndex(i);
+            if (IsPlayerValid(player) == false) { continue; }
+            
+            if(player.GetTeam() == params.winning_team)
+            {
+                players.insert(0, i);
+            }else
+            {
+                players.push(i);
+            }
+        }
+
         //Print Player stats
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x07FFFF00Stats: ");
-        for (local i = 1; i <= MaxPlayers; i++)
+        for (local i = 0; i < players.len(); i++)
         {
-            local player = PlayerInstanceFromIndex(i)
-            if (IsPlayerValid(player) == false) { continue; }
+            local player = PlayerInstanceFromIndex(players[i]);
 
             local pName = NetProps.GetPropString(player, "m_szNetname");
-            local scores = GetStat(i, STAT_SCORE);
-            local assists = GetStat(i, STAT_ASSIST);
-            local intercepts = GetStat(i, STAT_INTERCEPT);
-            local steals = GetStat(i, STAT_STEAL);
-            local swaps = GetStat(i, STAT_SWAP);
+            local scores = GetStat(players[i], STAT_SCORE);
+            local assists = GetStat(players[i], STAT_ASSIST);
+            local intercepts = GetStat(players[i], STAT_INTERCEPT);
+            local steals = GetStat(players[i], STAT_STEAL);
+            local swaps = GetStat(players[i], STAT_SWAP);
 
             local team = "FFFF00";
             if(player.GetTeam() == RED)
