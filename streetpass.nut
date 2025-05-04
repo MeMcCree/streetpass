@@ -18,8 +18,8 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1}, 
     ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
-    ["sp_roundtimer_addtime"] = {type = "float", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
-    ["sp_top_protection_time"] = {type = "float", value = 20.0, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 20.0},
+    ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
+    ["sp_top_protection_time"] = {type = "int", value = 20, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 20},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
@@ -357,7 +357,8 @@ printl("------------------------");
     //crossbow bolt ball collisions
     if(self.entindex() == 1)
     {
-        if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0 && ballSpawned && topProtected && Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time"))
+
+        if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0 && ballSpawned && topProtected && (Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time")))
         {
             topAreaTrigger.AcceptInput("Disable", "", null, null);
             topProtected = false;
