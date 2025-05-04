@@ -469,6 +469,11 @@ printl("------------------------");
         return;
     }
 
+    if(jackOwner == null)
+    {
+        return;
+    }
+
     FireScriptEvent("sp_swap_sides", {swaper = jackOwner, old_defense = defenseTeam, old_attack = attackerTeam});
 
     //set varibles
