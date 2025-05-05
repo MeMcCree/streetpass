@@ -14,12 +14,8 @@ first to 5 points wins<br>
     -smaller maps <br>
     -uses vscript so it can be hosted on steam networking<br>
     
-<h2>Class Differences:</h2>
-<h3>Soldier: </h3>
-  -none (other than the before mentioned infinite health and ammo) <br>
-<h3>Demoman</h3>
-  -Faster shield charge <br>
-  -Infinite Caber <br>
-<h3>Medic</h3>
-  -While holding the jack and in air he can copy teammates movement (quick-fix style) <br>
-  this includes: blast jumps, shield charges (disabled by default), caber jumps <br>
+<h2>Avaible Classes:</h2>
+    -Soldier
+    -Demoman
+    -Medic
+    -Pyro!
