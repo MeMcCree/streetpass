@@ -16,6 +16,8 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
     ["sp_demoman_minchargepercentage"] = {type = "float", value = 75.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 75.0},
     ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1}, 
+    ["sp_pyro_airblast_charge_rate"] = {type = "float", value = 3.0, desc = "", def = 3.0},
+    ["sp_pyro_detonator_knockback_mult"] = {type = "float", value = 1.5, desc = "", def = 1.5},
     ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
@@ -714,6 +716,15 @@ getroottable()[EventsID] <-
                 removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Syringe gun is not allowed!");
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
+            } 
+            else if(weapon_class == "tf_weapon_rocketlauncher_fireball")
+            {
+                local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
+                if(cooldown == null)
+                {
+                    cooldown = 0.8;
+                }
+                held_weapon.AddAttribute("item_meter_charge_rate", cooldown, 0);
             } else
             {
                 if (last_good_weapon == null)
@@ -781,6 +792,28 @@ getroottable()[EventsID] <-
         local victim = params.const_entity;
         local attacker = params.attacker;
 
+        if(params.weapon != null)
+        {
+            local weapon = params.weapon;
+            if(weapon.GetClassname() == "tf_weapon_flaregun")
+            {
+                if(victim.GetClassname() == "passtime_ball" && victim.GetTeam() != 0)
+                {
+                    params.damage = 0;
+                    params.const_base_damage = 0;
+                    params.early_out = true;
+                    return;
+                }
+
+                local pushmult = GetSpCvar("sp_pyro_detonator_knockback_mult");
+                if(pushmult == null)
+                {
+                    pushmult = 1.0;
+                }
+                params.damage *= pushmult;
+            }
+        }
+
         if(victim.GetClassname() == "passtime_ball" && IsPlayerValid(attacker))
         {
             jackTeam = 0;
@@ -790,6 +823,7 @@ getroottable()[EventsID] <-
             }
             return;
         }
+        
 
         if(IsPlayerValid(attacker) && GetStat(attacker, STAT_BLOCKDAMAGETICK) == GetFrameCount())
         {
