@@ -257,6 +257,11 @@ printl("------------------------");
         self.RemoveCondEx(Constants.ETFCond.TF_COND_PASSTIME_INTERCEPTION, true);
     }
 
+    if(self.InCond(Constants.ETFCond.TF_COND_BURNING))
+    {
+        self.RemoveCond(Constants.ETFCond.TF_COND_BURNING);
+    }
+
     //infinite health
     if((!matchEnded || self.GetTeam() == winnerTeam) && !self.IsFakeClient())
     {
@@ -706,6 +711,16 @@ getroottable()[EventsID] <-
                 removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Shotgun is not allowed!");
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
+            } else if(weapon_class == "tf_weapon_shotgun_pyro")
+            {
+                removed = true;
+                ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Shotgun is not allowed!");
+                NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
+            } else if(weapon_class == "tf_weapon_shotgun")
+            {
+                removed = true;
+                ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Shotgun is not allowed!");
+                NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
             } else if(weapon_class == "tf_weapon_pipebomblauncher")
             {
                 removed = true;
@@ -716,8 +731,7 @@ getroottable()[EventsID] <-
                 removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Syringe gun is not allowed!");
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
-            } 
-            else if(weapon_class == "tf_weapon_rocketlauncher_fireball")
+            } else if(weapon_class == "tf_weapon_rocketlauncher_fireball")
             {
                 local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
                 if(cooldown == null)
@@ -725,6 +739,11 @@ getroottable()[EventsID] <-
                     cooldown = 0.8;
                 }
                 held_weapon.AddAttribute("item_meter_charge_rate", cooldown, 0);
+            } else if(weapon_class == "tf_weapon_flamethrower")
+            {
+                removed = true;
+                ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Flamethrower is not allowed!");
+                NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
             } else
             {
                 if (last_good_weapon == null)
