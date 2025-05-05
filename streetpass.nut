@@ -18,7 +18,7 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1}, 
     ["sp_pyro_airblast_charge_rate"] = {type = "float", value = 3.0, desc = "", def = 3.0},
     ["sp_pyro_detonator_knockback_mult"] = {type = "float", value = 1.5, desc = "", def = 1.5},
-    ["sp_pyro_detonator_splash_radius"] = {type = "float", value = 8.0, desc = "", def = 8.0},
+    ["sp_pyro_detonator_splash_radius"] = {type = "float", value = 48.0, desc = "", def = 48.0},
     ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
@@ -131,7 +131,7 @@ if(previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.4.11";
+const VERSION = "1.5.1";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
