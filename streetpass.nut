@@ -130,7 +130,7 @@ if(previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.4.11";
+const VERSION = "1.5.0";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
