@@ -826,23 +826,24 @@ getroottable()[EventsID] <-
             if(weapon.GetClassname() == "tf_weapon_flaregun")
             {
                 local splash_radius = GetSpCvar("sp_pyro_detonator_splash_radius");
-                if(victim.GetClassname() == "passtime_ball" && victim.GetTeam() != 0)
+                if(victim.GetClassname() == "passtime_ball")
                 {
-                    if(!splash_radius || (params.inflictor.GetOrigin() - victim.GetOrigin()).Length() > splash_radius)
+                    if(victim.GetTeam() != 0 && (!splash_radius || (params.inflictor.GetOrigin() - victim.GetOrigin()).Length() > splash_radius))
                     {
                         params.damage = 0;
                         params.const_base_damage = 0;
                         params.early_out = true;
                         return;
                     }
-                }
-
-                local pushmult = GetSpCvar("sp_pyro_detonator_knockback_mult");
-                if(pushmult == null)
+                } else
                 {
-                    pushmult = 1.0;
+                    local pushmult = GetSpCvar("sp_pyro_detonator_knockback_mult");
+                    if(pushmult == null)
+                    {
+                        pushmult = 1.0;
+                    }
+                    params.damage *= pushmult;
                 }
-                params.damage *= pushmult;
             }
         }
 
