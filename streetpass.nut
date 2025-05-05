@@ -1006,6 +1006,16 @@ getroottable()[EventsID] <-
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
+
+        if(catcher.GetTeam() == defenseTeam)
+        {
+            if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+            {
+                topAreaTrigger.AcceptInput("Disable", "", null, null);
+                topProtected = false;
+                FireScriptEvent("sp_top_protection_disabled", {});
+            }
+        }
     }
 
     OnGameEvent_pass_ball_stolen = function(params)
