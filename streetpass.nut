@@ -19,7 +19,8 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
     ["sp_demoman_minchargepercentage"] = {type = "float", value = 75.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 75.0},
     ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1}, 
-    ["sp_pyro_airblast_charge_rate"] = {type = "float", value = 3.0, desc = "", def = 3.0},
+    ["sp_pyro_primary_charge_rate"] = {type = "float", value = 0.8, desc = "", def = 0.8},
+    ["sp_pyro_df_splash_radius"] = {type = "float", value = 38.5, desc = "", def = 38.5},
     ["sp_pyro_detonator_knockback_mult"] = {type = "float", value = 1.6, desc = "", def = 1.6},
     ["sp_pyro_detonator_splash_radius"] = {type = "float", value = 56.0, desc = "", def = 56.0},
     ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
@@ -386,18 +387,18 @@ printl("------------------------");
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
     }
 
-    local ent = null;
-    while(ent = Entities.FindByClassname(ent, "tf_projectile_healing_bolt"))
+    local ball = Entities.FindByClassname(null, "passtime_ball");
+
+    if(ball)
     {
-        local ball = Entities.FindByClassname(null, "passtime_ball");
-        
-        if(ball /*&& jackTeam != 0*/ )
+        local ent = null;
+        while(ent = Entities.FindByClassname(ent, "tf_projectile_healing_bolt"))
         {
+            
             local dir = ball.GetOrigin() - ent.GetOrigin()
             if(dir.Length() < 16.0)
             {
                 local owner = ent.GetOwner();
-                printl(owner);
                 if(owner != null)
                 {
                     local name = NetProps.GetPropString(owner, "m_szNetname");
@@ -406,6 +407,24 @@ printl("------------------------");
                 dir.Norm();
                 dir = dir.Scale(192.0);
                 ball.ApplyAbsVelocityImpulse(dir);
+                jackTeam = 0;
+                ball.SetTeam(0);
+                ent.Destroy();
+                break;
+            }
+        }
+
+        ent = null;
+        while(ent = Entities.FindByClassname(ent, "tf_projectile_balloffire"))
+        {
+            local dir = ball.GetOrigin() - ent.GetOrigin()
+            local radius = GetSpCvar("sp_pyro_df_splash_radius");
+            if(dir.Length() < radius)
+            {
+                dir = ent.GetAbsAngles().Forward();
+                dir.Norm();
+                dir = dir.Scale(512.0);
+                ball.SetPhysVelocity(dir);
                 jackTeam = 0;
                 ball.SetTeam(0);
                 ent.Destroy();
@@ -606,37 +625,6 @@ printl("------------------------");
     }
 }
 
-::PlayFullChargeSound <- function()
-{
-    EmitSoundOnClient(AIRBLAST_RECHARGE_STOP_SOUND, self);
-}
-
-::NoAttack <- function()
-{
-    if(!matchEnded)
-    {
-        NetProps.SetPropFloat(self, "m_flNextPrimaryAttack", Time() + 1);
-    }
-
-    if(self.GetClassname() == "tf_weapon_flamethrower")
-    {
-        local airblast = NetProps.GetPropFloat(self, "m_flNextSecondaryAttack");
-
-        if(airblast != last_airblast)
-        {
-            local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
-            local owner = self.GetOwner()
-            if(owner && airblast - Time() > cooldown * 2.0 - 0.001) // Very bad calculation for pyro's airblast cooldown
-            {
-                EntFireByHandle(owner, "CallScriptFunction", "PlayFullChargeSound", airblast - Time(), null, null);
-            }
-            last_airblast = airblast;
-        }
-    }
-
-    return -1;
-}
-
 ::EnableTopProtection <- function()
 {
     topProtected = true;
@@ -804,26 +792,25 @@ getroottable()[EventsID] <-
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
             } else if(weapon_class == "tf_weapon_rocketlauncher_fireball")
             {
-                local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
+                local cooldown = GetSpCvar("sp_pyro_primary_charge_rate");
 
                 held_weapon.AddAttribute("item_meter_charge_rate", cooldown, 0);
-                held_weapon.RemoveAttribute("airblast_pushback_no_stun");
-                held_weapon.AddAttribute("airblast_pushback_no_stun", casti2f(1), 0);
-                AddThinkToEnt(held_weapon, "NoAttack");
+                held_weapon.RemoveAttribute("no_airblast");
+                held_weapon.AddAttribute("no_airblast", casti2f(1), 0);
             } else if(weapon_class == "tf_weapon_flamethrower")
             {
-                local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
-                
-                held_weapon.AddAttribute("mult airblast refire time", cooldown * 2.7, 0);
-                held_weapon.RemoveAttribute("airblast_pushback_no_stun");
-                held_weapon.AddAttribute("airblast_pushback_no_stun", casti2f(1), 0);
-
-                held_weapon.ValidateScriptScope();
-                held_weapon.GetScriptScope().last_airblast <- NetProps.GetPropFloat(held_weapon, "m_flNextSecondaryAttack");
-                AddThinkToEnt(held_weapon, "NoAttack");
-                /*removed = true;
+                removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Flamethrower is not allowed!");
-                NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);*/
+                NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
+                
+                local weapon = Entities.CreateByClassname("tf_weapon_rocketlauncher_fireball");
+                NetProps.SetPropInt(weapon, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 1178);
+                NetProps.SetPropBool(weapon, "m_AttributeManager.m_Item.m_bInitialized", true);
+                NetProps.SetPropBool(weapon, "m_bValidatedAttachedEntity", true);
+                weapon.SetTeam(player.GetTeam());
+                weapon.DispatchSpawn();
+                player.Weapon_Equip(weapon);
+                player.Weapon_Switch(weapon);
             } else
             {
                 if (last_good_weapon == null)
