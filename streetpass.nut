@@ -147,7 +147,7 @@ const MAX_WEAPONS = 8;
 ::redGoal <- Entities.FindByName(null, "red_goal");
 ::blueGoal <- Entities.FindByName(null, "blue_goal");
 ::swapZone <- Entities.FindByName(null, "streetpass_swapzone");
-::topAreaTrigger <- Entities.FindByName(null, "top_area_trigger");
+::topAreaTriggers <- [];
 
 ::redSpawns <- [];
 ::blueSpawns <- [];
@@ -375,48 +375,44 @@ printl("------------------------");
         }
     }
 
-    //crossbow bolt ball collisions
-    if(self.entindex() == 1)
+    return -1;
+}
+
+::StreetpassThink <- function()
+{
+    if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0 && ballSpawned && topProtected && (Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time")))
     {
+        DisableTopProtection();
+        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
+    }
 
-        if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0 && ballSpawned && topProtected && (Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time")))
+    local ent = null;
+    while(ent = Entities.FindByClassname(ent, "tf_projectile_healing_bolt"))
+    {
+        local ball = Entities.FindByClassname(null, "passtime_ball");
+        
+        if(ball /*&& jackTeam != 0*/ )
         {
-            topAreaTrigger.AcceptInput("Disable", "", null, null);
-            topProtected = false;
-            FireScriptEvent("sp_top_protection_disabled", {});
-            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
-        }
-
-        local ent = null;
-        while(ent = Entities.FindByClassname(ent, "tf_projectile_healing_bolt"))
-        {
-            local ball = Entities.FindByClassname(null, "passtime_ball");
-            
-            if(ball /*&& jackTeam != 0*/ )
+            local dir = ball.GetOrigin() - ent.GetOrigin()
+            if(dir.Length() < 16.0)
             {
-                local dir = ball.GetOrigin() - ent.GetOrigin()
-                if(dir.Length() < 16.0)
+                local owner = ent.GetOwner();
+                printl(owner);
+                if(owner != null)
                 {
-                    local owner = ent.GetOwner();
-                    printl(owner);
-                    if(owner != null)
-                    {
-                        local name = NetProps.GetPropString(owner, "m_szNetname");
-                        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 " + name + " splashed the ball with an arrow!");
-                    }
-                    dir.Norm();
-                    dir = dir.Scale(192.0);
-                    ball.ApplyAbsVelocityImpulse(dir);
-                    jackTeam = 0;
-                    ball.SetTeam(0);
-                    ent.Destroy();
-                    break;
+                    local name = NetProps.GetPropString(owner, "m_szNetname");
+                    ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 " + name + " splashed the ball with an arrow!");
                 }
+                dir.Norm();
+                dir = dir.Scale(192.0);
+                ball.ApplyAbsVelocityImpulse(dir);
+                jackTeam = 0;
+                ball.SetTeam(0);
+                ent.Destroy();
+                break;
             }
         }
     }
-
-    return -1;
 }
 
 ::min <- function(a, b)
@@ -441,22 +437,34 @@ printl("------------------------");
     }
 }
 
+::BoxVsBox <- function(mins1, maxs1, mins2, maxs2)
+{
+    local x = max(mins1.x, mins2.x);
+    local xx = min(maxs1.x, maxs2.x);
+    local y = max(mins1.y, mins2.y);
+    local yy = min(maxs1.y, maxs2.y);
+    local z = max(mins1.z, mins2.z);
+    local zz = min(maxs1.z, maxs2.z);
+
+    if(zz < z || yy < y || xx < x)
+    {
+        return false;
+    }
+    return true;
+}
+
 ::PlayerLeaveTopAreaThink <- function ()
 {
+    Assert(self.GetScriptScope().topAreaTriggerIdx != null && self.GetScriptScope().topAreaTriggerIdx < topAreaTriggers.len(), "Invalid topAreaTriggerIdx!");
+    local topAreaTrigger = topAreaTriggers[self.GetScriptScope().topAreaTriggerIdx];
+
     local plmins = self.GetOrigin() + self.GetPlayerMins();
     local plmaxs = self.GetOrigin() + self.GetPlayerMaxs();
 
-    local mins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
-    local maxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
+    local trmins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
+    local trmaxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
 
-    local x = max(plmins.x, mins.x);
-    local xx = min(plmaxs.x, maxs.x);
-    local y = max(plmins.y, mins.y);
-    local yy = min(plmaxs.y, maxs.y);
-    local z = max(plmins.z, mins.z);
-    local zz = min(plmaxs.z, maxs.z);
-
-    if(zz < z || yy < y || xx < x)
+    if(!BoxVsBox(plmins, plmaxs, trmins, trmaxs))
     {
         AddThinkToEnt(self, "PlayerThink");
         return -1;
@@ -471,8 +479,9 @@ printl("------------------------");
     self.RemoveFlag(Constants.FPlayer.FL_ONGROUND);
     local pos = topAreaTrigger.GetCenter();
     local vel = self.GetOrigin() - pos;
+    vel.z = 0;
     vel.Norm();
-    vel = vel.Scale(9999);
+    vel = vel.Scale(1024);
     vel.z = self.GetAbsVelocity().z;
     self.SetAbsVelocity(vel);
 
@@ -507,11 +516,9 @@ printl("------------------------");
     instantRespawn = true;
     ballSpawned = false;
 
-    if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+    if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
     {
-        topProtected = true;
-        topAreaTrigger.AcceptInput("Enable", "", null, null);
-        FireScriptEvent("sp_top_protection_enabled", {});
+        EnableTopProtection();
     }
 
     //swap spawn locations
@@ -586,9 +593,7 @@ printl("------------------------");
 
     if(ballSpawned)
     {
-        topAreaTrigger.AcceptInput("Disable", "", null, null);
-        topProtected = false;
-        FireScriptEvent("sp_top_protection_disabled", {});
+        DisableTopProtection();
     }
 }
 
@@ -596,6 +601,7 @@ printl("------------------------");
 {
     if(activator.GetTeam() != attackerTeam)
     {
+        activator.GetScriptScope().topAreaTriggerIdx = caller.GetScriptScope().idx;
         AddThinkToEnt(activator, "PlayerLeaveTopAreaThink");
     }
 }
@@ -629,6 +635,26 @@ printl("------------------------");
     }
 
     return -1;
+}
+
+::EnableTopProtection <- function()
+{
+    topProtected = true;
+    FireScriptEvent("sp_top_protection_enabled", {});
+    for(local i = 0; i < topAreaTriggers.len(); i++)
+    {
+        topAreaTriggers[i].AcceptInput("Enable", "", null, null);
+    }
+}
+
+::DisableTopProtection <- function()
+{
+    topProtected = false;
+    FireScriptEvent("sp_top_protection_disabled", {});
+    for(local i = 0; i < topAreaTriggers.len(); i++)
+    {
+        topAreaTriggers[i].AcceptInput("Disable", "", null, null);
+    }
 }
 
 local EventsID = UniqueString()
@@ -665,6 +691,8 @@ getroottable()[EventsID] <-
     OnGameEvent_player_spawn = function(params)
     {
         local player = GetPlayerFromUserID(params.userid);
+        player.ValidateScriptScope();
+        player.GetScriptScope().topAreaTriggerIdx <- null;
         AddThinkToEnt(player, "PlayerThink");
     }
 
@@ -678,11 +706,9 @@ getroottable()[EventsID] <-
         matchEnded = true;
         winnerTeam = params.winning_team;
 
-        if(topAreaTrigger != null)
+        if(topAreaTriggers.len() != 0)
         {
-            topAreaTrigger.AcceptInput("Disable", "", null, null);
-            topProtected = false;
-            FireScriptEvent("sp_top_protection_disabled", {});
+            DisableTopProtection();
         }
 
         //Sort players by team
@@ -844,11 +870,9 @@ getroottable()[EventsID] <-
             }
         }
 
-        if(topAreaTrigger != null)
+        if(topAreaTriggers.len() != 0)
         {
-            topAreaTrigger.AcceptInput("Enable", "", null, null);
-            topProtected = true;
-            FireScriptEvent("sp_top_protection_enabled", {});
+            EnableTopProtection();
         }
 
         if(IsDedicatedServer())
@@ -972,11 +996,9 @@ getroottable()[EventsID] <-
         
         if(owner.GetTeam() == defenseTeam)
         {
-            if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+            if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
             {
-                topAreaTrigger.AcceptInput("Disable", "", null, null);
-                topProtected = false;
-                FireScriptEvent("sp_top_protection_disabled", {});
+                DisableTopProtection();
             }
         }
     }
@@ -1005,11 +1027,9 @@ getroottable()[EventsID] <-
         IncStat(scorer, STAT_KILLSTREAK, 2);
         instantRespawn = true;
         ballSpawned = false;
-        if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+        if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
         {
-            topProtected = true;
-            topAreaTrigger.AcceptInput("Enable", "", null, null);
-            FireScriptEvent("sp_top_protection_enabled", {});
+            EnableTopProtection();
         }
 
         if(params.assister < 0)
@@ -1050,11 +1070,9 @@ getroottable()[EventsID] <-
 
         if(catcher.GetTeam() == defenseTeam)
         {
-            if(topAreaTrigger != null && GetSpCvar("sp_top_protection_time") != 0)
+            if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
             {
-                topAreaTrigger.AcceptInput("Disable", "", null, null);
-                topProtected = false;
-                FireScriptEvent("sp_top_protection_disabled", {});
+                DisableTopProtection();
             }
         }
     }
@@ -1085,7 +1103,7 @@ getroottable()[EventsID] <-
             instantRespawn = false;
             FireScriptEvent("sp_pass_spawn", {});
 
-            if(topAreaTrigger == null || GetSpCvar("sp_top_protection_time") == 0)
+            if(topAreaTriggers.len() == 0 || GetSpCvar("sp_top_protection_time") == 0)
             {
                 return;
             }
@@ -1107,31 +1125,36 @@ getroottable()[EventsID] <-
                     numAttackers++;
                 }
 
-                local pos = player.GetOrigin();
-                local mins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
-                local maxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
-                
-                if(pos.z >= mins.z && pos.x >= mins.x && pos.y >= mins.y && pos.x <= maxs.x && pos.y <= maxs.y)
+                for(local i = 0; i < topAreaTriggers.len(); i++)
                 {
-                    if(player.GetTeam() == attackerTeam)
+                    local topAreaTrigger = topAreaTriggers[i];
+
+                    local plmins = player.GetOrigin() + player.GetPlayerMins();
+                    local plmaxs = player.GetOrigin() + player.GetPlayerMaxs();
+
+                    local trmins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
+                    local trmaxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
+
+                    if(BoxVsBox(plmins, plmaxs, trmins, trmaxs))
                     {
-                        numInside++;
-                    } else if(player.GetTeam() == defenseTeam)
-                    {
-                        player.ForceRespawn();
-                        ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is protected!");
+                        if(player.GetTeam() == attackerTeam)
+                        {
+                            numInside++;
+                        } else if(player.GetTeam() == defenseTeam)
+                        {
+                            player.ForceRespawn();
+                            ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is protected!");
+                        }
+                        break;
                     }
                 }
             }
+
             if(!numInside || numInside < numAttackers)
             {
-                topAreaTrigger.AcceptInput("Disable", "", null, null);
-                topProtected = false;
-                FireScriptEvent("sp_top_protection_disabled", {});
+                DisableTopProtection();
             } else {
-                topAreaTrigger.AcceptInput("Enable", "", null, null);
-                topProtected = true;
-                FireScriptEvent("sp_top_protection_enabled", {});
+                EnableTopProtection();
             }
         }
     }
@@ -1150,6 +1173,16 @@ function OnPostSpawn()
             redSpawns.append(spawn);
         }
     }
+
+    local trigger = null;
+    while(trigger = Entities.FindByName(trigger, "top_area_trigger"))
+    {
+        trigger.ValidateScriptScope();
+        trigger.GetScriptScope().idx <- topAreaTriggers.len();
+        topAreaTriggers.append(trigger);
+    }
+
+    AddThinkToEnt(passtimeLogic, "StreetpassThink");
 }
 
 local EventsTable = getroottable()[EventsID]
