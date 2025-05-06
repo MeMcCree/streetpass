@@ -2,7 +2,10 @@
 //maps using this gamemode use the sp_ prefix
 
 const SWAP_SOUND = "coach/coach_look_here.wav";
+const AIRBLAST_RECHARGE_STOP_SOUND = "Weapon_DragonsFury.PressureBuildStop";
+
 PrecacheSound(SWAP_SOUND);
+PrecacheSound(AIRBLAST_RECHARGE_STOP_SOUND);
 
 Convars.SetValue("tf_passtime_ball_reset_time", 99999);
 Convars.SetValue("tf_passtime_powerball_threshold", 10000);
@@ -247,7 +250,7 @@ printl("------------------------");
     NetProps.SetPropIntArray(self, "m_Shared.m_nStreaks", GetStat(self, STAT_KILLSTREAK), 0);
 
     //instant respawn
-    if(!self.IsAlive() && (GetSpCvar("sp_instant_respawn") > 1 || GetSpCvar("sp_instant_respawn") && instantRespawn))
+    if(!self.IsAlive() && (GetSpCvar("sp_instant_respawn") > 1 || GetSpCvar("sp_instant_respawn") && instantRespawn && !matchEnded))
     {
         self.ForceRespawn();
     }
@@ -597,6 +600,37 @@ printl("------------------------");
     }
 }
 
+::PlayFullChargeSound <- function()
+{
+    EmitSoundOnClient(AIRBLAST_RECHARGE_STOP_SOUND, self);
+}
+
+::NoAttack <- function()
+{
+    if(!matchEnded)
+    {
+        NetProps.SetPropFloat(self, "m_flNextPrimaryAttack", Time() + 1);
+    }
+
+    if(self.GetClassname() == "tf_weapon_flamethrower")
+    {
+        local airblast = NetProps.GetPropFloat(self, "m_flNextSecondaryAttack");
+
+        if(airblast != last_airblast)
+        {
+            local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
+            local owner = self.GetOwner()
+            if(owner && airblast - Time() > cooldown * 2.0 - 0.001) // Very bad calculation for pyro's airblast cooldown
+            {
+                EntFireByHandle(owner, "CallScriptFunction", "PlayFullChargeSound", airblast - Time(), null, null);
+            }
+            last_airblast = airblast;
+        }
+    }
+
+    return -1;
+}
+
 local EventsID = UniqueString()
 getroottable()[EventsID] <-
 {
@@ -745,18 +779,25 @@ getroottable()[EventsID] <-
             } else if(weapon_class == "tf_weapon_rocketlauncher_fireball")
             {
                 local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
-                if(cooldown == null)
-                {
-                    cooldown = 0.8;
-                }
+
                 held_weapon.AddAttribute("item_meter_charge_rate", cooldown, 0);
                 held_weapon.RemoveAttribute("airblast_pushback_no_stun");
                 held_weapon.AddAttribute("airblast_pushback_no_stun", casti2f(1), 0);
+                AddThinkToEnt(held_weapon, "NoAttack");
             } else if(weapon_class == "tf_weapon_flamethrower")
             {
-                removed = true;
+                local cooldown = GetSpCvar("sp_pyro_airblast_charge_rate");
+                
+                held_weapon.AddAttribute("mult airblast refire time", cooldown * 2.7, 0);
+                held_weapon.RemoveAttribute("airblast_pushback_no_stun");
+                held_weapon.AddAttribute("airblast_pushback_no_stun", casti2f(1), 0);
+
+                held_weapon.ValidateScriptScope();
+                held_weapon.GetScriptScope().last_airblast <- NetProps.GetPropFloat(held_weapon, "m_flNextSecondaryAttack");
+                AddThinkToEnt(held_weapon, "NoAttack");
+                /*removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Flamethrower is not allowed!");
-                NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
+                NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);*/
             } else
             {
                 if (last_good_weapon == null)
