@@ -1,8 +1,8 @@
-// Whitelist generated at Mon, 05 May 2025 21:48:22 +0200
-// Custom Whitelist ID: 18177
+// Whitelist generated at Wed, 07 May 2025 11:10:39 +0200
+// Custom Whitelist ID: 18179
 
 // Share or view this whitelist:
-//	https://whitelist.tf/18177
+//	https://whitelist.tf/18179
 
 // New items added to the game are: allowed
 // Hats are: allowed
@@ -38,9 +38,9 @@
 // - Secondary
 //  * Detonator
 // - Melee
+//  * Axtinguisher
 //  * Back Scratcher
 //  * Homewrecker
-//  * Hot Hand
 //  * Neon Annihilator
 //  * Sharpened Volcano Fragment
 //  * Third Degree
@@ -73,7 +73,7 @@
 {
 	"unlisted_items_default_to"		"1"
 
-	//------------ Blocked weapons/reskins (Total: 135) -------------\\
+	//------------ Blocked weapons/reskins (Total: 133) -------------\\
 	//______________________ Multiple classes _______________________\\
 	"Panic Attack Shotgun"						"0"
 	"The B.A.S.E. Jumper"						"0"
@@ -116,17 +116,15 @@
 	"The Mantreads"							"0"
 	"The Righteous Bison"						"0"
 	//____________________________ Pyro _____________________________\\
-	"Festive Axtinguisher"						"0"
 	"Festive Backburner 2014"					"0"
 	"Festive Flare Gun"						"0"
-	"The Axtinguisher"						"0"
 	"The Backburner"						"0"
 	"The Degreaser"							"0"
 	"The Flare Gun"							"0"
 	"The Gas Passer"						"0"
+	"The Hot Hand"							"0"
 	"The Manmelter"							"0"
 	"The Phlogistinator"						"0"
-	"The Postal Pummeler"						"0"
 	"The Powerjack"							"0"
 	"The Scorch Shot"						"0"
 	"The Thermal Thruster"						"0"
