@@ -2,19 +2,16 @@
 //maps using this gamemode use the sp_ prefix
 
 const SWAP_SOUND = "coach/coach_look_here.wav";
-// const AIRBLAST_RECHARGE_STOP_SOUND = "Weapon_DragonsFury.PressureBuildStop";
-
 PrecacheSound(SWAP_SOUND);
-// PrecacheSound(AIRBLAST_RECHARGE_STOP_SOUND);
 
 Convars.SetValue("tf_passtime_ball_reset_time", 99999);
 Convars.SetValue("tf_passtime_powerball_threshold", 10000);
 Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
-//TODO: 
-//-FIX Dragons Fury attributes
-//-ADD demo shield to sticky users and arrows to syringe gun users (for consistency with pyro)
+//TODO:
+//-ADD demo shield to sticky users (for consistency with pyro)
+// ^ Shield is fucking tricky to add to player
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -57,9 +54,7 @@ gamerules.ValidateScriptScope();
     {
         error(key + " = " + val.value);
         if(val.value != val.def)
-        {
             print(" ( def. \"" + val.def + "\" )");
-        }
         printl("\n" + val.desc + "\n")
     }
 }
@@ -67,9 +62,7 @@ gamerules.ValidateScriptScope();
 ::ResetSpCvars <- function()
 {
     foreach (key, val in streetpassConvars)
-    {
         val.value = val.def;
-    }
 }
 
 ::sp_reset_convars <- ResetSpCvars;
@@ -133,13 +126,11 @@ foreach (key, val in streetpassConvars)
 
 ::previousConvars <- GetData("streetpassConvars");
 if(previousConvars != null)
-{
     streetpassConvars = previousConvars;
-}
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.5.2";
+const VERSION = "1.5.3";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -180,8 +171,7 @@ const STAT_STEAL = 2;
 const STAT_INTERCEPT = 3;
 const STAT_SWAP = 4;
 const STAT_KILLSTREAK = 5;
-const STAT_BLOCKDAMAGETICK = 6;
-const STAT_LENGTH = 7;
+const STAT_LENGTH = 6;
 
 ::playerTable <- {}
 ::sideSwaps <- 0;
@@ -198,9 +188,7 @@ printl("------------------------");
     {
         playerTable[playerIndex] <- {};
         for(local i = 0; i < STAT_LENGTH; i++)
-        {
             playerTable[playerIndex][i] <- 0;
-        }
     }
 
     playerTable[playerIndex][stat] = val;
@@ -212,9 +200,7 @@ printl("------------------------");
     {
         playerTable[playerIndex] <- {};
         for(local i = 0; i < STAT_LENGTH; i++)
-        {
             playerTable[playerIndex][i] <- 0;
-        }
     }
 
     playerTable[playerIndex][stat] += by;
@@ -226,9 +212,7 @@ printl("------------------------");
     {
         playerTable[playerIndex] <- {};
         for(local i = 0; i < STAT_LENGTH; i++)
-        {
             playerTable[playerIndex][i] <- 0;
-        }
     }
 
     return playerTable[playerIndex][stat];
@@ -237,14 +221,10 @@ printl("------------------------");
 ::IsPlayerValid <- function (player)
 {
     if (player == null || player.IsPlayer() == false)
-    {
         return false;
-    }
 
     if (player.GetTeam() == 0 || player.GetTeam() == 1)
-    {
         return false;
-    }
 
     return true;
 }
@@ -256,57 +236,39 @@ printl("------------------------");
 
     //instant respawn
     if(!self.IsAlive() && (GetSpCvar("sp_instant_respawn") > 1 || GetSpCvar("sp_instant_respawn") && instantRespawn && !matchEnded))
-    {
         self.ForceRespawn();
-    }
 
     //removing interception effects
     if(self.InCond(Constants.ETFCond.TF_COND_PASSTIME_INTERCEPTION))
-    {
         self.RemoveCondEx(Constants.ETFCond.TF_COND_PASSTIME_INTERCEPTION, true);
-    }
 
     if(self.InCond(Constants.ETFCond.TF_COND_BURNING))
-    {
         self.RemoveCond(Constants.ETFCond.TF_COND_BURNING);
-    }
 
     if(self.InCond(Constants.ETFCond.TF_COND_KNOCKED_INTO_AIR))
-    {
         self.RemoveCond(Constants.ETFCond.TF_COND_KNOCKED_INTO_AIR);
-    }
 
     if(self.InCond(Constants.ETFCond.TF_COND_AIR_CURRENT))
-    {
         self.RemoveCond(Constants.ETFCond.TF_COND_AIR_CURRENT);
-    }
 
     //infinite health
     if((!matchEnded || self.GetTeam() == winnerTeam) && !self.IsFakeClient())
-    {
         self.SetHealth(999);
-    }
 
     //infinite ammo
     local weapon = self.GetActiveWeapon();
     local player_class = self.GetPlayerClass();
-    if(weapon != null)
+    if(weapon)
     {
         if(GetSpCvar("sp_infinite_clip") && weapon.UsesClipsForAmmo1() && (player_class == Constants.ETFClass.TF_CLASS_DEMOMAN || player_class == Constants.ETFClass.TF_CLASS_SOLDIER))
-        {
             weapon.SetClip1(weapon.GetMaxClip1());
-        }
 
         if(GetSpCvar("sp_infinite_clip") && weapon.GetClassname() == "tf_weapon_particle_cannon")
-        {
             NetProps.SetPropFloat(weapon, "m_flEnergy", 100.0);
-        }
 
         local ammo_type = NetProps.GetPropInt(weapon, "m_iPrimaryAmmoType");
         if(ammo_type > 0)
-        {
             NetProps.SetPropIntArray(self, "m_iAmmo", 999, ammo_type);
-        }
     }
 
     if(GetSpCvar("sp_demoman_infinitecaber"))
@@ -314,10 +276,8 @@ printl("------------------------");
         for (local i = 0; i < MAX_WEAPONS; i++)
         {
             local held_weapon = NetProps.GetPropEntityArray(self, "m_hMyWeapons", i);
-            if(held_weapon == null)
-            {
+            if(!held_weapon)
                 continue;
-            }
 
             //recharging caber
             local weapon_name = held_weapon.GetPrintName();
@@ -325,9 +285,7 @@ printl("------------------------");
             {
                 local detonated = NetProps.GetPropInt(held_weapon, "m_iDetonated")
                 if(detonated)
-                {
-                    NetProps.SetPropInt(held_weapon, "m_iDetonated", 0)
-                }
+                    NetProps.SetPropInt(held_weapon, "m_iDetonated", 0);
                 break;
             }
         }
@@ -337,21 +295,18 @@ printl("------------------------");
     for(local wearable = self.FirstMoveChild(); wearable != null; wearable = wearable.NextMovePeer())
     {
         if(wearable.GetClassname() != "tf_wearable_demoshield")
-        {
             continue;
-        }
+
         local charge = NetProps.GetPropFloat(self, "m_Shared.m_flChargeMeter");
 
         if(!self.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE) && charge < GetSpCvar("sp_demoman_minchargepercentage"))
         {
             local mincharge = GetSpCvar("sp_demoman_minchargepercentage");
             if(mincharge < 0)
-            {
                 mincharge = 0
-            }else if(mincharge > 100)
-            {
+            else if(mincharge > 100)
                 mincharge = 100
-            }
+
             NetProps.SetPropFloat(self, "m_Shared.m_flChargeMeter", mincharge);
         }
 
@@ -361,9 +316,7 @@ printl("------------------------");
             {
                 local player = PlayerInstanceFromIndex(i);
                 if(!IsPlayerValid(player) || player.entindex() == self.entindex() || player.GetTeam() != self.GetTeam())
-                {
                     continue;
-                }
 
                 if(player.GetPlayerClass() == Constants.ETFClass.TF_CLASS_MEDIC)
                 {
@@ -383,12 +336,15 @@ printl("------------------------");
     return -1;
 }
 
+::TopAreaAvaliable <- function()
+{
+    return topAreaTriggers.len() && GetSpCvar("sp_top_protection_time");
+}
+
 ::StreetpassThink <- function()
 {
-    if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0 && ballSpawned && topProtected && (Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time")))
-    {
+    if(TopAreaAvaliable() && ballSpawned && topProtected && (Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time")))
         DisableTopProtection(true);
-    }
 
     local ball = Entities.FindByClassname(null, "passtime_ball");
 
@@ -402,7 +358,7 @@ printl("------------------------");
             if(dir.Length() < 16.0)
             {
                 local owner = ent.GetOwner();
-                if(owner != null)
+                if(owner)
                 {
                     local name = NetProps.GetPropString(owner, "m_szNetname");
                     ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 " + name + " splashed the ball with an arrow!");
@@ -417,11 +373,11 @@ printl("------------------------");
             }
         }
 
+        local radius = GetSpCvar("sp_pyro_df_splash_radius");
         ent = null;
         while(ent = Entities.FindByClassname(ent, "tf_projectile_balloffire"))
         {
             local dir = ball.GetOrigin() - ent.GetOrigin()
-            local radius = GetSpCvar("sp_pyro_df_splash_radius");
             if(dir.Length() < radius)
             {
                 dir = ent.GetAbsAngles().Forward();
@@ -439,24 +395,12 @@ printl("------------------------");
 
 ::min <- function(a, b)
 {
-    if(a < b)
-    {
-        return a;
-    } else
-    {
-        return b;
-    }
+    return (a < b) ? a : b;
 }
 
 ::max <- function(a, b)
 {
-    if(a > b)
-    {
-        return a;
-    } else
-    {
-        return b;
-    }
+    return (a > b) ? a : b;
 }
 
 ::BoxVsBox <- function(mins1, maxs1, mins2, maxs2)
@@ -469,9 +413,7 @@ printl("------------------------");
     local zz = min(maxs1.z, maxs2.z);
 
     if(zz < z || yy < y || xx < x)
-    {
         return false;
-    }
     return true;
 }
 
@@ -493,9 +435,7 @@ printl("------------------------");
     }
 
     if(self.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE))
-    {
         self.RemoveCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE);
-    }
 
     NetProps.SetPropEntity(self, "m_hGroundEntity", null);
     self.RemoveFlag(Constants.FPlayer.FL_ONGROUND);
@@ -513,19 +453,13 @@ printl("------------------------");
 ::SwapSides <- function()
 {
     if(activator.GetClassname() != "passtime_ball")
-    {
         return;
-    }
 
     if(jackTeam != defenseTeam)
-    {
         return;
-    }
 
     if(jackOwner == null)
-    {
         return;
-    }
 
     FireScriptEvent("sp_swap_sides", {swaper = jackOwner, old_defense = defenseTeam, old_attack = attackerTeam});
 
@@ -538,21 +472,15 @@ printl("------------------------");
     instantRespawn = true;
     ballSpawned = false;
 
-    if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
-    {
+    if(TopAreaAvaliable())
         EnableTopProtection();
-    }
 
     //swap spawn locations
     for (local i = 0; i < blueSpawns.len(); i++)
-    {
         blueSpawns[i].SetTeam(attackerTeam);
-    }
 
     for (local i = 0; i < redSpawns.len(); i++)
-    {
         redSpawns[i].SetTeam(defenseTeam);
-    }
 
     local oName = NetProps.GetPropString(PlayerInstanceFromIndex(jackOwner), "m_szNetname");
     IncStat(jackOwner, STAT_SWAP);
@@ -571,11 +499,10 @@ printl("------------------------");
     }
 
     //play the swap sound
-    EmitSoundEx(
-        {
-            sound_name = SWAP_SOUND,
-            filter_type = Constants.EScriptRecipientFilter.RECIPIENT_FILTER_GLOBAL
-        });
+    EmitSoundEx({
+        sound_name = SWAP_SOUND,
+        filter_type = Constants.EScriptRecipientFilter.RECIPIENT_FILTER_GLOBAL
+    });
 
     //spawn ball and add time
     if(GetSpCvar("sp_roundtimer_addtime"))
@@ -592,15 +519,14 @@ printl("------------------------");
 
 ::PlayerSwapTeam <- function(player)
 {
-    if(IsPlayerValid(player) == false) { return; }
+    if(IsPlayerValid(player) == false)
+        return;
 
-    local newTeam = 0
+    local newTeam = 0;
     if (player.GetTeam() == RED)
-    {
-        newTeam = BLUE
-    } else {
-        newTeam = RED
-    }
+        newTeam = BLUE;
+    else
+        newTeam = RED;
 
     player.ForceChangeTeam(newTeam, true);
 }
@@ -608,19 +534,13 @@ printl("------------------------");
 ::PlayerLeftTop <- function()
 {
     if(matchEnded)
-    {
         return;
-    }
 
     if(activator.GetTeam() != attackerTeam)
-    {
         return;
-    }
 
     if(ballSpawned)
-    {
         DisableTopProtection(true);
-    }
 }
 
 ::PlayerEnteredTop <- function()
@@ -640,9 +560,7 @@ printl("------------------------");
     topProtected = true;
     FireScriptEvent("sp_top_protection_enabled", {});
     for(local i = 0; i < topAreaTriggers.len(); i++)
-    {
         topAreaTriggers[i].AcceptInput("Enable", "", null, null);
-    }
 }
 
 ::DisableTopProtection <- function(notify = false)
@@ -653,12 +571,29 @@ printl("------------------------");
     topProtected = false;
     FireScriptEvent("sp_top_protection_disabled", {});
     for(local i = 0; i < topAreaTriggers.len(); i++)
-    {
         topAreaTriggers[i].AcceptInput("Disable", "", null, null);
-    }
 
     if(notify)
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
+}
+
+::GivePlayerWeapon <- function(player, classname, itemid, prevWeapon = null)
+{
+    local weapon = Entities.CreateByClassname(classname);
+    NetProps.SetPropInt(weapon, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", itemid);
+    NetProps.SetPropBool(weapon, "m_AttributeManager.m_Item.m_bInitialized", true);
+    NetProps.SetPropBool(weapon, "m_bValidatedAttachedEntity", true);
+    weapon.SetTeam(player.GetTeam());
+    weapon.DispatchSpawn();
+    player.Weapon_Equip(weapon);
+    if(prevWeapon)
+        prevWeapon.Destroy();
+    return weapon;
+}
+
+::NoAirblast <- function()
+{
+    NetProps.SetPropFloat(self, "m_flNextSecondaryAttack", Time() + 1.0);
 }
 
 local EventsID = UniqueString()
@@ -704,24 +639,20 @@ getroottable()[EventsID] <-
         matchEnded = true;
         winnerTeam = params.winning_team;
 
-        if(topAreaTriggers.len() != 0)
-        {
+        if(TopAreaAvaliable())
             DisableTopProtection(false);
-        }
 
         //Sort players by team
         local players = [];
         for (local i = 1; i <= MaxPlayers; i++) {
             local player = PlayerInstanceFromIndex(i);
-            if (IsPlayerValid(player) == false) { continue; }
+            if (IsPlayerValid(player) == false)
+                continue;
 
             if(player.GetTeam() == params.winning_team)
-            {
                 players.insert(0, i);
-            }else
-            {
+            else
                 players.push(i);
-            }
         }
 
         //Print Player stats
@@ -751,12 +682,11 @@ getroottable()[EventsID] <-
         for (local i = 1; i <= MaxPlayers; i++)
         {
             local player = PlayerInstanceFromIndex(i)
-            if (IsPlayerValid(player) == false) { continue; }
+            if (IsPlayerValid(player) == false)
+                continue;
 
             if(player.GetTeam() != winnerTeam)
-            {
                 player.SetHealth(player.GetMaxHealth());
-            }
         }
     }
 
@@ -770,9 +700,7 @@ getroottable()[EventsID] <-
         {
             local held_weapon = NetProps.GetPropEntityArray(player, "m_hMyWeapons", i);
             if(held_weapon == null)
-            {
                 continue;
-            }
 
             local weapon_class = held_weapon.GetClassname();
             if(weapon_class == "tf_weapon_shotgun_soldier" || weapon_class == "tf_weapon_shotgun_pyro" || weapon_class == "tf_weapon_shotgun")
@@ -781,16 +709,7 @@ getroottable()[EventsID] <-
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Shotgun is not allowed!");
                 if(player.GetPlayerClass() == Constants.ETFClass.TF_CLASS_PYRO)
-                {
-                    local weapon = Entities.CreateByClassname("tf_weapon_flaregun");
-                    NetProps.SetPropInt(weapon, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 351);
-                    NetProps.SetPropBool(weapon, "m_AttributeManager.m_Item.m_bInitialized", true);
-                    NetProps.SetPropBool(weapon, "m_bValidatedAttachedEntity", true);
-                    weapon.SetTeam(player.GetTeam());
-                    weapon.DispatchSpawn();
-                    player.Weapon_Equip(weapon);
-                    player.Weapon_Switch(weapon);
-                }
+                    GivePlayerWeapon(player, "tf_weapon_flaregun", 351, held_weapon);
             } else if(weapon_class == "tf_weapon_pipebomblauncher")
             {
                 removed = true;
@@ -801,44 +720,31 @@ getroottable()[EventsID] <-
                 removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Syringe gun is not allowed!");
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
+                GivePlayerWeapon(player, "tf_weapon_crossbow", 305, held_weapon);
             } else if(weapon_class == "tf_weapon_rocketlauncher_fireball")
             {
                 local cooldown = GetSpCvar("sp_pyro_primary_charge_rate");
-
                 held_weapon.AddAttribute("item_meter_charge_rate", cooldown, 0);
-                held_weapon.RemoveAttribute("no_airblast");
-                held_weapon.AddAttribute("no_airblast", casti2f(1), 0);
+                AddThinkToEnt(held_weapon, "NoAirblast");
             } else if(weapon_class == "tf_weapon_flamethrower")
             {
                 removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Flamethrower is not allowed!");
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
-
-                local weapon = Entities.CreateByClassname("tf_weapon_rocketlauncher_fireball");
-                NetProps.SetPropInt(weapon, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", 1178);
-                NetProps.SetPropBool(weapon, "m_AttributeManager.m_Item.m_bInitialized", true);
-                NetProps.SetPropBool(weapon, "m_bValidatedAttachedEntity", true);
-                weapon.SetTeam(player.GetTeam());
-                weapon.DispatchSpawn();
-                player.Weapon_Equip(weapon);
-                player.Weapon_Switch(weapon);
+                local cooldown = GetSpCvar("sp_pyro_primary_charge_rate");
+                local weapon = GivePlayerWeapon(player, "tf_weapon_rocketlauncher_fireball", 1178, held_weapon);
+                weapon.AddAttribute("item_meter_charge_rate", cooldown, 0);
+                AddThinkToEnt(weapon, "NoAirblast");
             } else
             {
-                if (last_good_weapon == null)
-                {
+                if (!last_good_weapon)
                    last_good_weapon = held_weapon;
-                }
             }
         }
 
         //set active weapon to a valid one after removal
-        if(removed)
-        {
-            if (last_good_weapon != null)
-            {
-                player.Weapon_Switch(last_good_weapon);
-            }
-        }
+        if(removed && last_good_weapon != null)
+            player.Weapon_Switch(last_good_weapon);
     }
 
     // OnGameEvent_teamplay_round_start = function(params)
@@ -862,24 +768,20 @@ getroottable()[EventsID] <-
             for (local i = 1; i <= MaxPlayers ; i++)
             {
                 local player = PlayerInstanceFromIndex(i)
-                if (IsPlayerValid(player) == false) { continue; }
+                if (IsPlayerValid(player) == false)
+                    continue;
 
                 PlayerSwapTeam(player);
             }
         }
 
-        if(topAreaTriggers.len() != 0)
-        {
+        if(TopAreaAvaliable())
             EnableTopProtection();
-        }
 
         if(IsDedicatedServer())
-        {
             SendToConsole("exec streetpass_vscripts.cfg");
-        } else
-        {
+        else
             SendToServerConsole("exec streetpass_vscripts.cfg");
-        }
     }
 
     //redo vars on round restart
@@ -913,10 +815,8 @@ getroottable()[EventsID] <-
                 } else
                 {
                     local pushmult = GetSpCvar("sp_pyro_detonator_knockback_mult");
-                    if(pushmult == null)
-                    {
+                    if(!pushmult)
                         pushmult = 1.0;
-                    }
                     params.damage *= pushmult;
                 }
             }
@@ -926,41 +826,18 @@ getroottable()[EventsID] <-
         {
             jackTeam = 0;
             if(victim.GetTeam() != 0)
-            {
                 FireScriptEvent("sp_pass_splashed", {splasher = attacker.entindex(), old_ball = victim.GetTeam()});
-            }
-            return;
-        }
-
-
-        if(IsPlayerValid(attacker) && GetStat(attacker, STAT_BLOCKDAMAGETICK) == GetFrameCount())
-        {
-            params.damage = 0;
-            params.early_out = true;
-            return;
-        }
-
-        if(victim.GetName() == "block_caber")
-        {
-            if(IsPlayerValid(attacker))
-            {
-                SetStat(attacker, STAT_BLOCKDAMAGETICK, GetFrameCount());
-            }
             return;
         }
 
         if(!IsPlayerValid(victim) || !GetSpCvar("sp_medic_replicates_blast_jump"))
-        {
             return;
-        }
 
         for(local i = 1; i <= MaxPlayers; i++)
         {
             local player = PlayerInstanceFromIndex(i);
             if(!IsPlayerValid(player) || player.entindex() == victim.entindex() || player.GetTeam() != victim.GetTeam())
-            {
                 continue;
-            }
 
             if(player.GetPlayerClass() == Constants.ETFClass.TF_CLASS_MEDIC)
             {
@@ -969,7 +846,6 @@ getroottable()[EventsID] <-
 
                 if((medic_pos - victim_pos).Length() < packRange && !(player.GetFlags() & Constants.FPlayer.FL_ONGROUND) && player.GetActiveWeapon().GetClassname() == "tf_weapon_passtime_gun")
                 {
-
                     if(GetSpCvar("sp_medic_replicates_caber") && params.weapon != null && params.weapon.GetClassname() == "tf_weapon_stickbomb")
                     {
                         local demo_vel = victim.GetAbsVelocity();
@@ -994,10 +870,8 @@ getroottable()[EventsID] <-
 
         if(owner.GetTeam() == defenseTeam)
         {
-            if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
-            {
+            if(TopAreaAvaliable())
                 DisableTopProtection(true);
-            }
         }
     }
 
@@ -1014,9 +888,7 @@ getroottable()[EventsID] <-
         // assister (short)
         // points (byte)
         if(GetSpCvar("sp_roundtimer_addtime"))
-        {
             timer.AcceptInput("AddTime", GetSpCvar("sp_roundtimer_addtime").tostring(), self, self);
-        }
 
         local scorer = PlayerInstanceFromIndex(params.scorer);
         local sName = NetProps.GetPropString(scorer, "m_szNetname");
@@ -1025,15 +897,13 @@ getroottable()[EventsID] <-
         IncStat(scorer, STAT_KILLSTREAK, 2);
         instantRespawn = true;
         ballSpawned = false;
-        if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
-        {
+        if(TopAreaAvaliable())
             EnableTopProtection();
-        }
 
         if(params.assister < 0)
         {
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+sName+"\x01 Scored!");
-        }else
+        } else
         {
             local assister = PlayerInstanceFromIndex(params.assister);
             local aName = NetProps.GetPropString(assister, "m_szNetname");
@@ -1068,10 +938,8 @@ getroottable()[EventsID] <-
 
         if(catcher.GetTeam() == defenseTeam)
         {
-            if(topAreaTriggers.len() != 0 && GetSpCvar("sp_top_protection_time") != 0)
-            {
+            if(TopAreaAvaliable())
                 DisableTopProtection(true);
-            }
         }
     }
 
@@ -1086,9 +954,7 @@ getroottable()[EventsID] <-
         local aName = NetProps.GetPropString(attacker, "m_szNetname");
 
         if(victim.GetTeam() == attacker.GetTeam())
-        {
             return;
-        }
 
         IncStat(params.attacker, STAT_STEAL);
 
@@ -1101,10 +967,8 @@ getroottable()[EventsID] <-
             instantRespawn = false;
             FireScriptEvent("sp_pass_spawn", {});
 
-            if(topAreaTriggers.len() == 0 || GetSpCvar("sp_top_protection_time") == 0)
-            {
+            if(!TopAreaAvaliable())
                 return;
-            }
 
             ballSpawned = true;
             ballSpawnTime = Time();
@@ -1114,14 +978,10 @@ getroottable()[EventsID] <-
             {
                 local player = PlayerInstanceFromIndex(i);
                 if(!IsPlayerValid(player))
-                {
                     continue;
-                }
 
                 if(player.GetTeam() == attackerTeam)
-                {
                     numAttackers++;
-                }
 
                 for(local i = 0; i < topAreaTriggers.len(); i++)
                 {
@@ -1149,11 +1009,9 @@ getroottable()[EventsID] <-
             }
 
             if(!numInside || numInside < numAttackers)
-            {
                 DisableTopProtection(true);
-            } else {
+            else
                 EnableTopProtection();
-            }
         }
     }
 }
@@ -1164,12 +1022,9 @@ function OnPostSpawn()
     while(spawn = Entities.FindByClassname(spawn, "info_player_teamspawn"))
     {
         if(spawn.GetTeam() == BLUE)
-        {
             blueSpawns.append(spawn);
-        }
-        else {
+        else
             redSpawns.append(spawn);
-        }
     }
 
     local trigger = null;
