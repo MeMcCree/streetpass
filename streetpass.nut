@@ -347,6 +347,15 @@ printl("------------------------");
             }
         }
     }
+
+    for (local i = 1; i <= MaxPlayers; i++) {
+        local player = PlayerInstanceFromIndex(i);
+        if (IsPlayerValid(player))
+            continue;
+
+        if (player)
+            NetProps.SetPropString(player, "m_iszScriptThinkFunction", "");
+    }
 }
 
 ::min <- function(a, b) {
@@ -908,6 +917,9 @@ getroottable()[EventsID] <-
             else
                 EnableTopProtection();
         }
+    }
+
+    OnGameEvent_teams_changed = function(params) {
     }
 }
 
