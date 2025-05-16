@@ -10,8 +10,16 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
 //TODO:
-//-ADD demo shield to sticky users (for consistency with pyro)
+//-ADD demo shield to sticky users (for consistency)
 // ^ Shield is fucking tricky to add to player
+// ^ I agree
+
+//DONE:
+//-support for 1 goal only
+//-support for defender visualizer
+//-update convars to update imidietly
+//-reset stored values on tournament match end
+//-set infinite health back on tournament win
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -80,11 +88,13 @@ gamerules.ValidateScriptScope();
         case "int": {
             value = value.tointeger();
             streetpassConvars[name].value = value;
+            SetData("streetpassConvars", streetpassConvars);
             break;
         }
         case "float": {
             value = value.tofloat();
             streetpassConvars[name].value = value;
+            SetData("streetpassConvars", streetpassConvars);
             break;
         }
         default:
@@ -113,7 +123,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.5.3";
+const VERSION = "1.5.4";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -125,6 +135,27 @@ const MAX_WEAPONS = 8;
 
 ::redGoal <- Entities.FindByName(null, "red_goal");
 ::blueGoal <- Entities.FindByName(null, "blue_goal");
+::goal <- null;
+if(redGoal == null || blueGoal == null)
+{
+    if(redGoal != null)
+        goal = redGoal;
+    else if(blueGoal != null)
+        goal = blueGoal;
+    else
+    {
+        while(goal = Entities.FindByClassname(goal, "func_passtime_goal"))
+        {
+            if(goal.GetName() != "visualizer" || goal.GetName() != "skip")
+            {
+                break;
+            }
+        }
+    }
+}
+
+::visualizers <- [];
+
 ::swapZone <- Entities.FindByName(null, "streetpass_swapzone");
 ::topAreaTriggers <- [];
 
@@ -446,14 +477,30 @@ printl("------------------------");
 
     //toggle goals
     if (attackerTeam == RED) {
-        redGoal.AcceptInput("Enable", "", self, self);
-        blueGoal.AcceptInput("Disable", "", self, self);
+        if(goal == null)
+        {
+            redGoal.AcceptInput("Enable", "", self, self);
+            blueGoal.AcceptInput("Disable", "", self, self);
+        }else
+        {
+            goal.SetTeam(RED);
+        }
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+oName+"\x01 Swaped sides! \x07FF3F3FRED \x01team is now Attacking!");
     } else {
-        blueGoal.AcceptInput("Enable", "", self, self);
-        redGoal.AcceptInput("Disable", "", self, self);
+        if(goal == null)
+        {
+            blueGoal.AcceptInput("Enable", "", self, self);
+            redGoal.AcceptInput("Disable", "", self, self);
+        }else
+        {
+            goal.SetTeam(BLUE);
+        }
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+oName+"\x01 Swaped sides! \x0799CCFFBLU \x01team is now Attacking!");
     }
+
+    //set visualizers
+    for (local i = 0; i < visualizers.len(); i++)
+        visualizers[i].SetTeam(defenseTeam);
 
     //play the swap sound
     EmitSoundEx({
@@ -579,7 +626,7 @@ getroottable()[EventsID] <-
         SetData("winningTeam", params.winning_team);
         SetData("blueScore", params.blue_score);
         SetData("redScore", params.red_score);
-        SetData("streetpassConvars", streetpassConvars);
+        // SetData("streetpassConvars", streetpassConvars);
 
         matchEnded = true;
         winnerTeam = params.winning_team;
@@ -655,6 +702,7 @@ getroottable()[EventsID] <-
                 removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Stickybomb launcher is not allowed!");
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
+                // NetProps.SetPropInt(player, "m_Shared.m_bShieldEquipped", 1);
             } else if (weapon_class == "tf_weapon_syringegun_medic") {
                 removed = true;
                 ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Syringe gun is not allowed!");
@@ -681,6 +729,13 @@ getroottable()[EventsID] <-
         //set active weapon to a valid one after removal
         if (removed && last_good_weapon != null)
             player.Weapon_Switch(last_good_weapon);
+    }
+
+    OnGameEvent_tf_game_over = function(params) {
+        matchEnded = false;
+        SetData("winningTeam", RED);
+        SetData("blueScore", 0);
+        SetData("redScore", 0);
     }
 
     // OnGameEvent_teamplay_round_start = function(params)
@@ -938,6 +993,11 @@ function OnPostSpawn()
         trigger.ValidateScriptScope();
         trigger.GetScriptScope().idx <- topAreaTriggers.len();
         topAreaTriggers.append(trigger);
+    }
+
+    local visual = null;
+    while (visual = Entities.FindByName(visual, "visualizer")) {
+        visualizers.append(visual);
     }
 
     AddThinkToEnt(passtimeLogic, "StreetpassThink");
