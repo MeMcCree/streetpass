@@ -10,16 +10,11 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
 //TODO:
-//-ADD demo shield to sticky users (for consistency)
-// ^ Shield is fucking tricky to add to player
-// ^ I agree
-
-//DONE:
-//-support for 1 goal only
-//-support for defender visualizer
-//-update convars to update imidietly
-//-reset stored values on tournament match end
-//-set infinite health back on tournament win
+//-Rework top area collision systems:
+//  instead of tracking if someone is inside using custom collision detecions
+//  just track who left or is inside using OnStartTouch and OnEndTouch
+//  this will mean that we cannot disable the trigger, 
+//  and (not sure) prob need a diffrent approach to flinging the player 
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -28,10 +23,10 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
     ["sp_demoman_minchargepercentage"] = {type = "float", value = 75.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 75.0},
     ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1},
-    ["sp_pyro_primary_charge_rate"] = {type = "float", value = 0.8, desc = "", def = 0.8},
-    ["sp_pyro_df_splash_radius"] = {type = "float", value = 38.5, desc = "", def = 38.5},
-    ["sp_pyro_detonator_knockback_mult"] = {type = "float", value = 1.6, desc = "", def = 1.6},
-    ["sp_pyro_detonator_splash_radius"] = {type = "float", value = 56.0, desc = "", def = 56.0},
+    ["sp_pyro_primary_charge_rate"] = {type = "float", value = 0.8, desc = "How fast can pyro fire dragons fury", def = 0.8},
+    ["sp_pyro_df_splash_radius"] = {type = "float", value = 38.5, desc = "Splash Radius on the dragons fury", def = 38.5},
+    ["sp_pyro_detonator_knockback_mult"] = {type = "float", value = 1.6, desc = "Self Knockback multiplier on the detonator", def = 1.6},
+    ["sp_pyro_detonator_splash_radius"] = {type = "float", value = 56.0, desc = "Detonator Ball Splash radius", def = 56.0},
     ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
@@ -123,7 +118,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.5.4";
+const VERSION = "1.5.5";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -397,33 +392,23 @@ printl("------------------------");
     return (a > b) ? a : b;
 }
 
-::BoxVsBox <- function(mins1, maxs1, mins2, maxs2) {
-    local x = max(mins1.x, mins2.x);
-    local xx = min(maxs1.x, maxs2.x);
-    local y = max(mins1.y, mins2.y);
-    local yy = min(maxs1.y, maxs2.y);
-    local z = max(mins1.z, mins2.z);
-    local zz = min(maxs1.z, maxs2.z);
+::IsPointInTrigger <- function(point, trigger){
+	trigger.RemoveSolidFlags(4)  // FSOLID_NOT_SOLID
+	local trace =
+	{
+		start = point
+		end   = point
+		mask  = 1
+	}
+	TraceLineEx(trace)
+	trigger.AddSolidFlags(4)
 
-    if (zz < z || yy < y || xx < x)
-        return false;
-    return true;
+	return trace.hit && trace.enthit == trigger
 }
 
 ::PlayerLeaveTopAreaThink <- function () {
     Assert(self.GetScriptScope().topAreaTriggerIdx != null && self.GetScriptScope().topAreaTriggerIdx < topAreaTriggers.len(), "Invalid topAreaTriggerIdx!");
     local topAreaTrigger = topAreaTriggers[self.GetScriptScope().topAreaTriggerIdx];
-
-    local plmins = self.GetOrigin() + self.GetPlayerMins();
-    local plmaxs = self.GetOrigin() + self.GetPlayerMaxs();
-
-    local trmins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
-    local trmaxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
-
-    if (!BoxVsBox(plmins, plmaxs, trmins, trmaxs)) {
-        AddThinkToEnt(self, "PlayerThink");
-        return -1;
-    }
 
     if (self.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE))
         self.RemoveCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE);
@@ -437,6 +422,11 @@ printl("------------------------");
     vel = vel.Scale(1024);
     vel.z = self.GetAbsVelocity().z;
     self.SetAbsVelocity(vel);
+
+    if (!IsPointInTrigger(self.GetOrigin(), topAreaTrigger)) {
+        AddThinkToEnt(self, "PlayerThink");
+        return -1;
+    }
 
     return -1;
 }
@@ -949,13 +939,7 @@ getroottable()[EventsID] <-
                 for (local i = 0; i < topAreaTriggers.len(); i++) {
                     local topAreaTrigger = topAreaTriggers[i];
 
-                    local plmins = player.GetOrigin() + player.GetPlayerMins();
-                    local plmaxs = player.GetOrigin() + player.GetPlayerMaxs();
-
-                    local trmins = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMins();
-                    local trmaxs = topAreaTrigger.GetCenter() + topAreaTrigger.GetBoundingMaxs();
-
-                    if (BoxVsBox(plmins, plmaxs, trmins, trmaxs)) {
+                    if (IsPointInTrigger(player.GetOrigin(), topAreaTrigger)) {
                         if (player.GetTeam() == attackerTeam) {
                             numInside++;
                         } else if (player.GetTeam() == defenseTeam) {
