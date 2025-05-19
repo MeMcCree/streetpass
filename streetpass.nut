@@ -256,7 +256,6 @@ printl("------------------------");
 
     //infinite ammo
     local weapon = self.GetActiveWeapon();
-    local weapon_name = weapon.GetPrintName();
     local player_class = self.GetPlayerClass();
     if (weapon) {
         if (GetSpCvar("sp_infinite_clip") && weapon.UsesClipsForAmmo1() && (player_class == Constants.ETFClass.TF_CLASS_DEMOMAN || player_class == Constants.ETFClass.TF_CLASS_SOLDIER))
@@ -270,6 +269,7 @@ printl("------------------------");
             NetProps.SetPropIntArray(self, "m_iAmmo", 999, ammo_type);
 
         //caber logic    
+        local weapon_name = weapon.GetPrintName();
         if(weapon_name == "#TF_Weapon_StickBomb" && GetSpCvar("sp_demoman_caber_recharge_time") >= 0) {
             local detonated = NetProps.GetPropInt(weapon, "m_iDetonated")
             if (detonated && self.GetScriptScope().caberTimeSet == false) {
