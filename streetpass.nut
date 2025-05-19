@@ -10,11 +10,7 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
 //TODO:
-//-Rework top area collision systems:
-//  instead of tracking if someone is inside using custom collision detecions
-//  just track who left or is inside using OnStartTouch and OnEndTouch
-//  this will mean that we cannot disable the trigger, 
-//  and (not sure) prob need a diffrent approach to flinging the player 
+//-Implement the hammer logic top area fully
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -22,15 +18,17 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_medic_replicates_caber"] = {type = "int", value = 1, desc = "Allows the medic to mimic demomans caber jumps while holding the ball", def = 1},
     ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
     ["sp_demoman_minchargepercentage"] = {type = "float", value = 75.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 75.0},
-    ["sp_demoman_infinitecaber"] = {type = "int", value = 1, desc = "Gives demoman infinite caber charges", def = 1},
+    ["sp_demoman_caber_recharge_time"] = {type = "float", value = 0, desc = "The time it takes for caber to recharge, -1 = dont recharge", def = 0},
     ["sp_pyro_primary_charge_rate"] = {type = "float", value = 0.8, desc = "How fast can pyro fire dragons fury", def = 0.8},
     ["sp_pyro_df_splash_radius"] = {type = "float", value = 38.5, desc = "Splash Radius on the dragons fury", def = 38.5},
     ["sp_pyro_detonator_knockback_mult"] = {type = "float", value = 1.6, desc = "Self Knockback multiplier on the detonator", def = 1.6},
     ["sp_pyro_detonator_splash_radius"] = {type = "float", value = 56.0, desc = "Detonator Ball Splash radius", def = 56.0},
-    ["sp_infinite_clip"] = {type = "int", value = 1, desc = "Gives infinite weapon clip", def = 1},
+    ["sp_infinite_clip"] = {type = "int", value = 0, desc = "Gives infinite weapon clip", def = 0},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
     ["sp_top_protection_time"] = {type = "int", value = 10, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 10},
+    ["sp_gibigao_protection"] = {type = "int", value = 0, desc = "While enabled disables scoring if player is not blast jumping", def = 0},
+    ["sp_exec_cfg"] = {type = "int", value = 0, desc = "Should the script automaticly exec streetpass_vscripts.cfg", def = 0},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
@@ -118,7 +116,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.5.5";
+const VERSION = "1.5.6";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -258,6 +256,7 @@ printl("------------------------");
 
     //infinite ammo
     local weapon = self.GetActiveWeapon();
+    local weapon_name = weapon.GetPrintName();
     local player_class = self.GetPlayerClass();
     if (weapon) {
         if (GetSpCvar("sp_infinite_clip") && weapon.UsesClipsForAmmo1() && (player_class == Constants.ETFClass.TF_CLASS_DEMOMAN || player_class == Constants.ETFClass.TF_CLASS_SOLDIER))
@@ -269,21 +268,18 @@ printl("------------------------");
         local ammo_type = NetProps.GetPropInt(weapon, "m_iPrimaryAmmoType");
         if (ammo_type > 0)
             NetProps.SetPropIntArray(self, "m_iAmmo", 999, ammo_type);
-    }
 
-    if (GetSpCvar("sp_demoman_infinitecaber")) {
-        for (local i = 0; i < MAX_WEAPONS; i++) {
-            local held_weapon = NetProps.GetPropEntityArray(self, "m_hMyWeapons", i);
-            if (!held_weapon)
-                continue;
+        //caber logic    
+        if(weapon_name == "#TF_Weapon_StickBomb" && GetSpCvar("sp_demoman_caber_recharge_time") >= 0) {
+            local detonated = NetProps.GetPropInt(weapon, "m_iDetonated")
+            if (detonated && self.GetScriptScope().caberTimeSet == false) {
+                self.GetScriptScope().caberTime = Time();
+                self.GetScriptScope().caberTimeSet = true;
+            }
 
-            //recharging caber
-            local weapon_name = held_weapon.GetPrintName();
-            if (weapon_name == "#TF_Weapon_StickBomb") {
-                local detonated = NetProps.GetPropInt(held_weapon, "m_iDetonated")
-                if (detonated)
-                    NetProps.SetPropInt(held_weapon, "m_iDetonated", 0);
-                break;
+            if(self.GetScriptScope().caberTime + GetSpCvar("sp_demoman_caber_recharge_time") <= Time()) {
+                NetProps.SetPropInt(weapon, "m_iDetonated", 0);
+                self.GetScriptScope().caberTimeSet = false;
             }
         }
     }
@@ -594,8 +590,13 @@ getroottable()[EventsID] <-
     //sp_pass_splashed {splasher - player index, old_ball - team number}
     //OnScriptEvent_sp_top_protection_enabled {}
     //OnScriptEvent_sp_top_protection_disabled {}
+    //sp_blast_jump { userid, playsound - bool }
+    //sp_blast_jump_landed { userid }
 
     OnGameEvent_player_death = function(params) {
+        local player = GetPlayerFromUserID(params.userid);
+        player.GetScriptScope().isBlastJumping = false;
+
         local weapon = Entities.FindByClassname(null, "tf_dropped_weapon");
         if (weapon)
             weapon.Destroy();
@@ -609,6 +610,9 @@ getroottable()[EventsID] <-
         local player = GetPlayerFromUserID(params.userid);
         player.ValidateScriptScope();
         player.GetScriptScope().topAreaTriggerIdx <- null;
+        player.GetScriptScope().isBlastJumping <- false;
+        player.GetScriptScope().caberTime <- 0;
+        player.GetScriptScope().caberTimeSet <- false;
         AddThinkToEnt(player, "PlayerThink");
     }
 
@@ -756,6 +760,9 @@ getroottable()[EventsID] <-
         if (TopAreaAvaliable())
             EnableTopProtection();
 
+        if(GetSpCvar("sp_exec_cfg") == 0)
+            return;
+
         if (IsDedicatedServer())
             SendToConsole("exec streetpass_vscripts.cfg");
         else
@@ -836,12 +843,40 @@ getroottable()[EventsID] <-
             if (TopAreaAvaliable())
                 DisableTopProtection(true);
         }
+
+        if(goal == null)
+        {
+            if(attackerTeam == BLUE)
+                blueGoal.AcceptInput("Enable", "", null, null);
+            else
+                redGoal.AcceptInput("Enable", "", null, null);
+        }else
+        {
+            goal.AcceptInput("Enable", "", null, null);
+        }
     }
 
     OnGameEvent_pass_free = function(params) {
         local owner = PlayerInstanceFromIndex(params.owner);
         jackOwner = params.owner;
         jackTeam = owner.GetTeam();
+
+        if(owner.GetPlayerClass() == Constants.ETFClass.TF_CLASS_PYRO || owner.GetPlayerClass() == Constants.ETFClass.TF_CLASS_MEDIC)
+            return;
+
+        if(GetSpCvar("sp_gibigao_protection") >= 1 && owner.GetScriptScope().isBlastJumping == false)
+        {
+            if(goal == null)
+            {
+                if(attackerTeam == BLUE)
+                    blueGoal.AcceptInput("Disable", "", null, null);
+                else
+                    redGoal.AcceptInput("Disable", "", null, null);
+            }else
+            {
+                goal.AcceptInput("Disable", "", null, null);
+            }
+        }
     }
 
     OnGameEvent_pass_score = function(params) {
@@ -958,7 +993,32 @@ getroottable()[EventsID] <-
         }
     }
 
-    OnGameEvent_teams_changed = function(params) {
+    //---set up for blast jump events---
+    OnGameEvent_rocket_jump = function (params) {
+        FireScriptEvent("sp_blast_jump", params);
+    }
+
+    OnGameEvent_sticky_jump = function (params) {
+        FireScriptEvent("sp_blast_jump", params);
+    }
+
+    OnGameEvent_rocket_jump_landed = function (params) {
+        FireScriptEvent("sp_blast_jump_landed", params);
+    }
+
+    OnGameEvent_sticky_jump_landed = function (params) {
+        FireScriptEvent("sp_blast_jump_landed", params);
+    }
+    //----------------------------------
+
+    OnScriptEvent_sp_blast_jump = function (params) {
+        local player = GetPlayerFromUserID(params.userid);
+        player.GetScriptScope().isBlastJumping = true;
+    }
+
+    OnScriptEvent_sp_blast_jump_landed = function (params) {
+        local player = GetPlayerFromUserID(params.userid);
+        player.GetScriptScope().isBlastJumping = false;
     }
 }
 
