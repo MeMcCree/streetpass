@@ -10,7 +10,9 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
 //TODO:
-//-Implement the hammer logic top area fully
+//-Implement the hammer logic top area fully [+]
+//-Set protection team [+]
+//-sp_top_protection_delete_projectiles []
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -27,6 +29,7 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
     ["sp_top_protection_time"] = {type = "int", value = 10, desc = "The amount of time before you can jump onto the mid platform as a defender", def = 10},
+    ["sp_top_protection_team"] = {type = "int", value = 0, desc = "The team that gets protected by the top protection (0 - attackers, 1 - defenders)", def = 0},
     ["sp_gibigao_protection"] = {type = "int", value = 0, desc = "While enabled disables scoring if player is not blast jumping", def = 0},
     ["sp_exec_cfg"] = {type = "int", value = 0, desc = "Should the script automaticly exec streetpass_vscripts.cfg", def = 0},
 };
@@ -116,7 +119,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.5.6";
+const VERSION = "1.6.0";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -124,7 +127,6 @@ const MAX_WEAPONS = 8;
 ::jackTeam <- BLUE;
 ::ballSpawned <- false;
 ::ballSpawnTime <- 0.0;
-::topProtected <- false;
 
 ::redGoal <- Entities.FindByName(null, "red_goal");
 ::blueGoal <- Entities.FindByName(null, "blue_goal");
@@ -150,7 +152,10 @@ if(redGoal == null || blueGoal == null)
 ::visualizers <- [];
 
 ::swapZone <- Entities.FindByName(null, "streetpass_swapzone");
+
 ::topAreaTriggers <- [];
+::topAreaActive <- false;
+::playersTop <- []
 
 ::redSpawns <- [];
 ::blueSpawns <- [];
@@ -188,6 +193,19 @@ printl("------------------------");
 printl("\nStreetPASS v."+VERSION);
 printl("for info on streetpass convars type: script sp_help()\n");
 printl("------------------------");
+
+::GetPlayersInTeam <- function (team) {
+    local numb = 0;
+    for (local i = 1; i <= MaxPlayers; i++) {
+        local player = PlayerInstanceFromIndex(i);
+        if (player == null || player.IsPlayer() == false)
+            continue;
+
+        if (player.GetTeam() == team)
+            numb++;
+    }
+    return numb++;
+}
 
 ::SetStat <- function(playerIndex, stat, val) {
     if (!(playerIndex in playerTable)) {
@@ -323,12 +341,98 @@ printl("------------------------");
     return -1;
 }
 
+//--- TOP AREA LOGIC ---
 ::TopAreaAvaliable <- function() {
     return topAreaTriggers.len() && GetSpCvar("sp_top_protection_time");
 }
 
+::PlayerExitTop <- function () {
+    if(!IsPlayerValid(activator))
+        return;
+
+    // printl("LEFT TOP");
+    local topTeam = attackerTeam;
+    if(GetSpCvar("sp_top_protection_team") == 1)
+        topTeam = defenseTeam;
+
+    if(activator.GetScriptScope().oldTeam == topTeam && ballSpawned)
+    {
+        DisableTopProtection(true);
+    }
+
+    for (local i = 0; i < playersTop.len(); i++) {
+        if(playersTop[i] == activator){
+            playersTop.remove(i);
+            break;
+        }
+    }
+}
+
+::PlayerEnterTop <- function () {
+    if(!IsPlayerValid(activator))
+        return;
+
+    activator.GetScriptScope().topAreaTriggerIdx = caller.GetScriptScope().idx;
+    playersTop.append(activator);
+    // printl("ENTERED TOP");
+}
+
+::PlayerTriggerTop <- function () {
+    if(!topAreaActive)
+        return;
+
+    // printl("TRIGGERED TOP");
+    for (local i = 0; i < playersTop.len(); i++) {
+        local player = playersTop[i];
+
+        local topTeam = attackerTeam;
+        if(GetSpCvar("sp_top_protection_team") == 1)
+            topTeam = defenseTeam;
+
+        if(player.GetTeam() != topTeam) {
+            Assert(player.GetScriptScope().topAreaTriggerIdx != null 
+            && player.GetScriptScope().topAreaTriggerIdx < topAreaTriggers.len(), 
+            "Invalid topAreaTriggerIdx!");
+            local topAreaTrigger = topAreaTriggers[player.GetScriptScope().topAreaTriggerIdx];
+
+            if (player.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE))
+                player.RemoveCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE);
+
+            NetProps.SetPropEntity(player, "m_hGroundEntity", null);
+            player.RemoveFlag(Constants.FPlayer.FL_ONGROUND);
+            local pos = topAreaTrigger.GetCenter();
+            local vel = player.GetOrigin() - pos;
+            vel.z = 0;
+            vel.Norm();
+            vel = vel.Scale(1024);
+            vel.z = player.GetAbsVelocity().z;
+            player.SetAbsVelocity(vel);
+        }
+    }
+}
+
+::EnableTopProtection <- function() {
+    if (topAreaActive)
+        return;
+    
+    topAreaActive = true;
+    FireScriptEvent("sp_top_protection_enabled", {});
+}
+
+::DisableTopProtection <- function(notify = false) {
+    if (!topAreaActive)
+        return;
+
+    topAreaActive = false;
+    FireScriptEvent("sp_top_protection_disabled", {});
+
+    if (notify)
+        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
+}
+//----------------------
+
 ::StreetpassThink <- function() {
-    if (TopAreaAvaliable() && ballSpawned && topProtected && (Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time")))
+    if (TopAreaAvaliable() && ballSpawned && topAreaActive && (Time() - ballSpawnTime > GetSpCvar("sp_top_protection_time")))
         DisableTopProtection(true);
 
     local ball = Entities.FindByClassname(null, "passtime_ball");
@@ -400,31 +504,6 @@ printl("------------------------");
 	trigger.AddSolidFlags(4)
 
 	return trace.hit && trace.enthit == trigger
-}
-
-::PlayerLeaveTopAreaThink <- function () {
-    Assert(self.GetScriptScope().topAreaTriggerIdx != null && self.GetScriptScope().topAreaTriggerIdx < topAreaTriggers.len(), "Invalid topAreaTriggerIdx!");
-    local topAreaTrigger = topAreaTriggers[self.GetScriptScope().topAreaTriggerIdx];
-
-    if (self.InCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE))
-        self.RemoveCond(Constants.ETFCond.TF_COND_SHIELD_CHARGE);
-
-    NetProps.SetPropEntity(self, "m_hGroundEntity", null);
-    self.RemoveFlag(Constants.FPlayer.FL_ONGROUND);
-    local pos = topAreaTrigger.GetCenter();
-    local vel = self.GetOrigin() - pos;
-    vel.z = 0;
-    vel.Norm();
-    vel = vel.Scale(1024);
-    vel.z = self.GetAbsVelocity().z;
-    self.SetAbsVelocity(vel);
-
-    if (!IsPointInTrigger(self.GetOrigin(), topAreaTrigger)) {
-        AddThinkToEnt(self, "PlayerThink");
-        return -1;
-    }
-
-    return -1;
 }
 
 ::SwapSides <- function() {
@@ -519,47 +598,6 @@ printl("------------------------");
     player.ForceChangeTeam(newTeam, true);
 }
 
-::PlayerLeftTop <- function() {
-    if (matchEnded)
-        return;
-
-    if (activator.GetTeam() != attackerTeam)
-        return;
-
-    if (ballSpawned)
-        DisableTopProtection(true);
-}
-
-::PlayerEnteredTop <- function() {
-    if (activator.GetTeam() != attackerTeam) {
-        activator.GetScriptScope().topAreaTriggerIdx = caller.GetScriptScope().idx;
-        AddThinkToEnt(activator, "PlayerLeaveTopAreaThink");
-    }
-}
-
-::EnableTopProtection <- function() {
-    if (topProtected)
-        return;
-
-    topProtected = true;
-    FireScriptEvent("sp_top_protection_enabled", {});
-    for (local i = 0; i < topAreaTriggers.len(); i++)
-        topAreaTriggers[i].AcceptInput("Enable", "", null, null);
-}
-
-::DisableTopProtection <- function(notify = false) {
-    if (!topProtected)
-        return;
-
-    topProtected = false;
-    FireScriptEvent("sp_top_protection_disabled", {});
-    for (local i = 0; i < topAreaTriggers.len(); i++)
-        topAreaTriggers[i].AcceptInput("Disable", "", null, null);
-
-    if (notify)
-        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is no longer protected!");
-}
-
 ::GivePlayerWeapon <- function(player, classname, itemid, prevWeapon = null) {
     local weapon = Entities.CreateByClassname(classname);
     NetProps.SetPropInt(weapon, "m_AttributeManager.m_Item.m_iItemDefinitionIndex", itemid);
@@ -613,7 +651,13 @@ getroottable()[EventsID] <-
         player.GetScriptScope().isBlastJumping <- false;
         player.GetScriptScope().caberTime <- 0;
         player.GetScriptScope().caberTimeSet <- false;
+        player.GetScriptScope().oldTeam <- player.GetTeam();
         AddThinkToEnt(player, "PlayerThink");
+    }
+
+    OnGameEvent_player_team = function (params) {
+        local player = GetPlayerFromUserID(params.userid);
+        player.GetScriptScope().oldTeam = params.oldteam;
     }
 
     OnGameEvent_teamplay_win_panel = function(params) {
@@ -839,7 +883,10 @@ getroottable()[EventsID] <-
         local owner = PlayerInstanceFromIndex(params.owner);
         jackTeam = owner.GetTeam();
 
-        if (owner.GetTeam() == defenseTeam) {
+        local badTeam = defenseTeam;
+        if(GetSpCvar("sp_top_protection_team") == 1)
+            badTeam = attackerTeam;
+        if (owner.GetTeam() == badTeam) {
             if (TopAreaAvaliable())
                 DisableTopProtection(true);
         }
@@ -853,6 +900,35 @@ getroottable()[EventsID] <-
         }else
         {
             goal.AcceptInput("Enable", "", null, null);
+        }
+    }
+
+    OnGameEvent_pass_pass_caught = function(params) {
+        // Intercept check for catchers team
+        // passer (short)
+        // catcher (short)
+        // dist (float)
+        // duration (float)
+
+        local passer = PlayerInstanceFromIndex(params.passer);
+        local catcher = PlayerInstanceFromIndex(params.catcher);
+
+        if (catcher.GetTeam() != passer.GetTeam()) {
+            local pName = NetProps.GetPropString(passer, "m_szNetname");
+            local cName = NetProps.GetPropString(catcher, "m_szNetname");
+            IncStat(params.catcher, STAT_INTERCEPT);
+            FireScriptEvent("sp_pass_intercept", {victim = params.passer, intercepter = params.catcher});
+
+            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
+        }
+
+        local badTeam = defenseTeam;
+        if(GetSpCvar("sp_top_protection_team") == 1)
+            badTeam = attackerTeam;
+
+        if (catcher.GetTeam() == badTeam) {
+            if (TopAreaAvaliable())
+                DisableTopProtection(true);
         }
     }
 
@@ -909,31 +985,6 @@ getroottable()[EventsID] <-
         }
     }
 
-    OnGameEvent_pass_pass_caught = function(params) {
-        // Intercept check for catchers team
-        // passer (short)
-        // catcher (short)
-        // dist (float)
-        // duration (float)
-
-        local passer = PlayerInstanceFromIndex(params.passer);
-        local catcher = PlayerInstanceFromIndex(params.catcher);
-
-        if (catcher.GetTeam() != passer.GetTeam()) {
-            local pName = NetProps.GetPropString(passer, "m_szNetname");
-            local cName = NetProps.GetPropString(catcher, "m_szNetname");
-            IncStat(params.catcher, STAT_INTERCEPT);
-            FireScriptEvent("sp_pass_intercept", {victim = params.passer, intercepter = params.catcher});
-
-            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
-        }
-
-        if (catcher.GetTeam() == defenseTeam) {
-            if (TopAreaAvaliable())
-                DisableTopProtection(true);
-        }
-    }
-
     OnGameEvent_pass_ball_stolen = function(params) {
         // Melee steal
         // victim (short)
@@ -961,32 +1012,29 @@ getroottable()[EventsID] <-
 
             ballSpawned = true;
             ballSpawnTime = Time();
-            local numAttackers = 0;
-            local numInside = 0;
-            for (local i = 1; i <= MaxPlayers; i++) {
-                local player = PlayerInstanceFromIndex(i);
-                if (!IsPlayerValid(player))
-                    continue;
 
-                if (player.GetTeam() == attackerTeam)
-                    numAttackers++;
+            local topTeam = attackerTeam;
+            local enemyTeam = defenseTeam;
+            if(GetSpCvar("sp_top_protection_team") == 1)
+            {
+                topTeam = defenseTeam;
+                enemyTeam = attackerTeam;
+            }
 
-                for (local i = 0; i < topAreaTriggers.len(); i++) {
-                    local topAreaTrigger = topAreaTriggers[i];
+            local attackers = GetPlayersInTeam(topTeam);
+            local attackersTop = 0;
 
-                    if (IsPointInTrigger(player.GetOrigin(), topAreaTrigger)) {
-                        if (player.GetTeam() == attackerTeam) {
-                            numInside++;
-                        } else if (player.GetTeam() == defenseTeam) {
-                            player.ForceRespawn();
-                            ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is protected!");
-                        }
-                        break;
-                    }
+            for (local i = 0; i < playersTop.len(); i++) {
+                local player = playersTop[i];
+                if(player.GetTeam() == topTeam){
+                    attackersTop++;
+                }else if(player.GetTeam() == enemyTeam){
+                    player.ForceRespawn();
+                    ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Top area is protected!");
                 }
             }
 
-            if (!numInside || numInside < numAttackers)
+            if(attackersTop != attackers || attackers == 0)
                 DisableTopProtection(true);
             else
                 EnableTopProtection();
