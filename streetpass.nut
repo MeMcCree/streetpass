@@ -10,19 +10,25 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
 //TODO:
-//-Cleanup code from comments of old code []
+//-Test if this code works []
+//-Cleanup code from comments of old code [x]
+//-Move OnTrigger to Think function [x]
 //-Make 2 protection areas defenders_protection_area & attackers_protection_area [x]
 //-Implement logic with Outputs automaticly to the triggers [x]
 //-sp_protection_time [x]
 //-sp_protection_delete_projectiles []
 //-delete sp_top_protection_team [x]
 
+//SP_FURNACE:
+//Art pass the roof,
+//3d skybox
+
 // StreetPASS convars
 ::streetpassConvars <- {
     ["sp_medic_replicates_democharge"] = {type = "int", value = 0, desc = "Allows the medic to mimic demomans shield charge while holding the ball", def = 0},
     ["sp_medic_replicates_caber"] = {type = "int", value = 1, desc = "Allows the medic to mimic demomans caber jumps while holding the ball", def = 1},
     ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
-    ["sp_demoman_minchargepercentage"] = {type = "float", value = 75.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 75.0},
+    ["sp_demoman_minchargepercentage"] = {type = "float", value = 65.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 65.0},
     ["sp_demoman_caber_recharge_time"] = {type = "float", value = 0, desc = "The time it takes for caber to recharge, -1 = dont recharge", def = 0},
     ["sp_pyro_primary_charge_rate"] = {type = "float", value = 0.8, desc = "How fast can pyro fire dragons fury", def = 0.8},
     ["sp_pyro_df_splash_radius"] = {type = "float", value = 38.5, desc = "Splash Radius on the dragons fury", def = 38.5},
@@ -434,18 +440,19 @@ class ProtectionArea {
 ::defendersProtection <- null;
 ::attackersProtection <- null;
 
-::DisableProtection <- function(){
-    printl("DisableProtection called");
+::DisableProtection <- function() {
     defendersProtection.Disable();
     attackersProtection.Disable();
 }
 
-::EnableProtection <- function(){
-    printl("EnableProtection called");
+::EnableProtection <- function() {
     defendersProtection.Enable();   
     attackersProtection.Enable();
-    printl(defendersProtection.isActive);
-    printl(attackersProtection.isActive);
+}
+
+::TriggerProtection <- function() {
+    defendersProtection.OnTrigger();
+    attackersProtection.OnTrigger();
 }
 //----------------------
 
@@ -454,6 +461,8 @@ class ProtectionArea {
     && (defendersProtection.isActive || attackersProtection.isActive)
     && (Time() - ballSpawnTime > GetSpCvar("sp_protection_time")))
         DisableProtection();
+
+    TriggerProtection();
 
     local ball = Entities.FindByClassname(null, "passtime_ball");
 
@@ -550,9 +559,6 @@ class ProtectionArea {
     sideSwaps += 1;
     instantRespawn = true;
     ballSpawned = false;
-
-    // if (TopAreaAvaliable())
-    //     EnableTopProtection();
 
     //swap spawn locations
     for (local i = 0; i < blueSpawns.len(); i++)
@@ -693,9 +699,6 @@ getroottable()[EventsID] <-
         matchEnded = true;
         winnerTeam = params.winning_team;
 
-        // if (TopAreaAvaliable())
-        //     DisableTopProtection(false);
-
         //Sort players by team
         local players = [];
         for (local i = 1; i <= MaxPlayers; i++) {
@@ -825,9 +828,6 @@ getroottable()[EventsID] <-
             }
         }
 
-        // if (TopAreaAvaliable())
-        //     EnableTopProtection();
-
         if(GetSpCvar("sp_exec_cfg") == 0)
             return;
 
@@ -939,8 +939,6 @@ getroottable()[EventsID] <-
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
-
-        DisableProtection();
     }
 
     OnGameEvent_pass_free = function(params) {
@@ -980,8 +978,6 @@ getroottable()[EventsID] <-
         IncStat(scorer, STAT_KILLSTREAK, 2);
         instantRespawn = true;
         ballSpawned = false;
-        // if (TopAreaAvaliable())
-        //     EnableTopProtection();
 
         if (params.assister < 0) {
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+sName+"\x01 Scored!");
@@ -1018,41 +1014,10 @@ getroottable()[EventsID] <-
             instantRespawn = false;
             FireScriptEvent("sp_pass_spawn", {});
 
-            // if (!TopAreaAvaliable())
-            //     return;
-
             ballSpawned = true;
             ballSpawnTime = Time();
         
             EnableProtection();
-
-            //TODO: If force respawning wont work make this work with new triggers
-
-            // local topTeam = attackerTeam;
-            // local enemyTeam = defenseTeam;
-            // if(GetSpCvar("sp_top_protection_team") == 1)
-            // {
-            //     topTeam = defenseTeam;
-            //     enemyTeam = attackerTeam;
-            // }
-
-            // local attackers = GetPlayersInTeam(topTeam);
-            // local attackersTop = 0;
-
-            // for (local i = 0; i < playersTop.len(); i++) {
-            //     local player = playersTop[i];
-            //     if(player.GetTeam() == topTeam){
-            //         attackersTop++;
-            //     }else if(player.GetTeam() == enemyTeam){
-            //         player.ForceRespawn();
-            //         ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Protection is active!");
-            //     }
-            // }
-
-            // if(attackersTop != attackers || attackers == 0)
-            //     DisableTopProtection(true);
-            // else
-            //     EnableTopProtection();
         }
     }
 
@@ -1105,7 +1070,6 @@ function OnPostSpawn()
         local t = defendersProtection.triggers[i];
         EntityOutputs.AddOutput(t, "OnStartTouch", "streetpass_script", "RunScriptCode", "defendersProtection.OnEnter()", 0, -1);
         EntityOutputs.AddOutput(t, "OnEndTouch", "streetpass_script", "RunScriptCode", "defendersProtection.OnExit()", 0, -1);
-        EntityOutputs.AddOutput(t, "OnTrigger", "streetpass_script", "RunScriptCode", "defendersProtection.OnTrigger()", 0, -1);
     }
 
     attackersProtection = ProtectionArea(attackerTeam, "sp_attackers_protection");
@@ -1113,7 +1077,6 @@ function OnPostSpawn()
         local t = attackersProtection.triggers[i];
         EntityOutputs.AddOutput(t, "OnStartTouch", "streetpass_script", "RunScriptCode", "attackersProtection.OnEnter()", 0, -1);
         EntityOutputs.AddOutput(t, "OnEndTouch", "streetpass_script", "RunScriptCode", "attackersProtection.OnExit()", 0, -1);
-        EntityOutputs.AddOutput(t, "OnTrigger", "streetpass_script", "RunScriptCode", "attackersProtection.OnTrigger()", 0, -1);
     }
 
     AddThinkToEnt(passtimeLogic, "StreetpassThink");
