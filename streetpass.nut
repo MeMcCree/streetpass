@@ -10,18 +10,15 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
 //TODO:
-//-Test if this code works []
-//-Cleanup code from comments of old code [x]
-//-Move OnTrigger to Think function [x]
-//-Make 2 protection areas defenders_protection_area & attackers_protection_area [x]
-//-Implement logic with Outputs automaticly to the triggers [x]
-//-sp_protection_time [x]
-//-sp_protection_delete_projectiles []
-//-delete sp_top_protection_team [x]
+//delete protection time [x]
+//trigger protection on ball spawn [x]
+//pasive reload []
 
 //SP_FURNACE:
 //Art pass the roof,
 //3d skybox
+//align floor coal textures
+//goal demo trimp
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -37,7 +34,6 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_infinite_clip"] = {type = "int", value = 0, desc = "Gives infinite weapon clip", def = 0},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
-    ["sp_protection_time"] = {type = "float", value = 0.1, desc = "The amount of time protection lasts", def = 0.1},
     ["sp_gibigao_protection"] = {type = "int", value = 0, desc = "While enabled disables scoring if player is not blast jumping", def = 0},
     ["sp_exec_cfg"] = {type = "int", value = 0, desc = "Should the script automaticly exec streetpass_vscripts.cfg", def = 0},
 };
@@ -127,7 +123,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.1";
+const VERSION = "1.6.2";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -375,10 +371,6 @@ class ProtectionArea {
         this.team = _team;
     }
 
-    function IsAvaible() {
-        return this.triggers.len() && GetSpCvar("sp_protection_time");
-    }
-
     function OnEnter() {
         if(!IsPlayerValid(activator))
             return;
@@ -404,9 +396,10 @@ class ProtectionArea {
         }
     }
 
-    function OnTrigger() {
-        if(!this.isActive)
-            return;
+    function OnTrigger(force = false) {
+        if(!force)
+            if(!this.isActive)
+                return;
 
         for (local i = 0; i < this.players.len(); i++) {
             local player = this.players[i];
@@ -450,20 +443,13 @@ class ProtectionArea {
     attackersProtection.Enable();
 }
 
-::TriggerProtection <- function() {
-    defendersProtection.OnTrigger();
-    attackersProtection.OnTrigger();
+::TriggerProtection <- function(force = false) {
+    defendersProtection.OnTrigger(force);
+    attackersProtection.OnTrigger(force);
 }
 //----------------------
 
 ::StreetpassThink <- function() {
-    if (ballSpawned 
-    && (defendersProtection.isActive || attackersProtection.isActive)
-    && (Time() - ballSpawnTime > GetSpCvar("sp_protection_time")))
-        DisableProtection();
-
-    TriggerProtection();
-
     local ball = Entities.FindByClassname(null, "passtime_ball");
 
     if (ball) {
@@ -907,8 +893,6 @@ getroottable()[EventsID] <-
         local owner = PlayerInstanceFromIndex(params.owner);
         jackTeam = owner.GetTeam();
 
-        DisableProtection();
-
         if(goal == null)
         {
             if(attackerTeam == BLUE)
@@ -1016,8 +1000,8 @@ getroottable()[EventsID] <-
 
             ballSpawned = true;
             ballSpawnTime = Time();
-        
-            EnableProtection();
+
+            TriggerProtection(true);
         }
     }
 
