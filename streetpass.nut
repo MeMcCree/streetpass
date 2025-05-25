@@ -36,6 +36,7 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
     ["sp_gibigao_protection"] = {type = "int", value = 0, desc = "While enabled disables scoring if player is not blast jumping", def = 0},
     ["sp_exec_cfg"] = {type = "int", value = 0, desc = "Should the script automaticly exec streetpass_vscripts.cfg", def = 0},
+    ["sp_reload_on_pass"] = {type = "int", value = 1, desc = "", def = 1},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
@@ -923,6 +924,12 @@ getroottable()[EventsID] <-
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
+
+        if (GetSpCvar("sp_reload_on_pass") && weapon.UsesClipsForAmmo1() && weapon.Clip1() != weapon.GetMaxClip1())
+            weapon.SetClip1(weapon.Clip1() + 1);
+
+        if (GetSpCvar("sp_reload_on_pass") && weapon.GetClassname() == "tf_weapon_particle_cannon" && NetProps.GetPropFloat(weapon, "m_flEnergy") != 100)
+            NetProps.SetPropFloat(weapon, "m_flEnergy", NetProps.GetPropFloat(weapon, "m_flEnergy") + 25.0);
     }
 
     OnGameEvent_pass_free = function(params) {
