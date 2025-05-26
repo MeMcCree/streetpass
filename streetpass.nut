@@ -37,6 +37,8 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_gibigao_protection"] = {type = "int", value = 0, desc = "While enabled disables scoring if player is not blast jumping", def = 0},
     ["sp_exec_cfg"] = {type = "int", value = 0, desc = "Should the script automaticly exec streetpass_vscripts.cfg", def = 0},
     ["sp_reload_on_pass"] = {type = "int", value = 1, desc = "", def = 1},
+    ["sp_passive_reload"] = {type = "int", value = 0, desc = "", def = 1},
+    ["sp_passive_reload_delay"] = {type = "float", value = 1.0, desc = "", def = 1.0},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
@@ -304,6 +306,24 @@ printl("------------------------");
                 self.GetScriptScope().caberTimeSet = false;
             }
         }
+
+        if (GetSpCvar("sp_passive_reload") && weapon.GetClassname() == "tf_weapon_passtime_gun" && Time() - self.GetScriptScope().lastReload >= GetSpCvar("sp_passive_reload_delay")) {
+            self.GetScriptScope().lastReload = Time();
+            
+            for (local i = 0; i < MAX_WEAPONS; i++) {
+                local held_weapon = NetProps.GetPropEntityArray(self, "m_hMyWeapons", i);
+                if (held_weapon == null)
+                    continue;
+
+                if (held_weapon.UsesClipsForAmmo1() && held_weapon.Clip1() != held_weapon.GetMaxClip1()) {
+                    printl(held_weapon.GetAttribute("sound_reload", 0));
+                    held_weapon.SetClip1(held_weapon.Clip1() + 1);
+                }
+
+                if (held_weapon.GetClassname() == "tf_weapon_particle_cannon" && NetProps.GetPropFloat(held_weapon, "m_flEnergy") != 100)
+                    NetProps.SetPropFloat(held_weapon, "m_flEnergy", NetProps.GetPropFloat(held_weapon, "m_flEnergy") + 25.0);
+            }
+        }
     }
 
     //infinite shield charge
@@ -509,17 +529,17 @@ class ProtectionArea {
 }
 
 ::IsPointInTrigger <- function(point, trigger){
-	trigger.RemoveSolidFlags(4)  // FSOLID_NOT_SOLID
-	local trace =
-	{
-		start = point
-		end   = point
-		mask  = 1
-	}
-	TraceLineEx(trace)
-	trigger.AddSolidFlags(4)
+    trigger.RemoveSolidFlags(4)  // FSOLID_NOT_SOLID
+    local trace =
+    {
+        start = point
+        end   = point
+        mask  = 1
+    }
+    TraceLineEx(trace)
+    trigger.AddSolidFlags(4)
 
-	return trace.hit && trace.enthit == trigger
+    return trace.hit && trace.enthit == trigger
 }
 
 ::SwapSides <- function() {
@@ -668,6 +688,7 @@ getroottable()[EventsID] <-
         player.GetScriptScope().isBlastJumping <- false;
         player.GetScriptScope().caberTime <- 0;
         player.GetScriptScope().caberTimeSet <- false;
+        player.GetScriptScope().lastReload <- Time();
         player.GetScriptScope().oldTeam <- player.GetTeam();
         AddThinkToEnt(player, "PlayerThink");
     }
@@ -904,6 +925,8 @@ getroottable()[EventsID] <-
         {
             goal.AcceptInput("Enable", "", null, null);
         }
+
+        owner.GetScriptScope().lastReload = Time();
     }
 
     OnGameEvent_pass_pass_caught = function(params) {
@@ -925,11 +948,16 @@ getroottable()[EventsID] <-
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
 
-        if (GetSpCvar("sp_reload_on_pass") && weapon.UsesClipsForAmmo1() && weapon.Clip1() != weapon.GetMaxClip1())
-            weapon.SetClip1(weapon.Clip1() + 1);
+        catcher.GetScriptScope().lastReload = Time();
 
-        if (GetSpCvar("sp_reload_on_pass") && weapon.GetClassname() == "tf_weapon_particle_cannon" && NetProps.GetPropFloat(weapon, "m_flEnergy") != 100)
-            NetProps.SetPropFloat(weapon, "m_flEnergy", NetProps.GetPropFloat(weapon, "m_flEnergy") + 25.0);
+        local weapon = catcher.GetActiveWeapon();
+        if (weapon) {
+            if (GetSpCvar("sp_reload_on_pass") && weapon.UsesClipsForAmmo1() && weapon.Clip1() != weapon.GetMaxClip1())
+                weapon.SetClip1(weapon.Clip1() + 1);
+
+            if (GetSpCvar("sp_reload_on_pass") && weapon.GetClassname() == "tf_weapon_particle_cannon" && NetProps.GetPropFloat(weapon, "m_flEnergy") != 100)
+                NetProps.SetPropFloat(weapon, "m_flEnergy", NetProps.GetPropFloat(weapon, "m_flEnergy") + 25.0);
+        }
     }
 
     OnGameEvent_pass_free = function(params) {
@@ -996,6 +1024,7 @@ getroottable()[EventsID] <-
             return;
 
         IncStat(params.attacker, STAT_STEAL);
+        attacker.GetScriptScope().lastReload = Time();
 
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+aName+"\x01 Stole the ball from "+vName+"\x01!");
     }
