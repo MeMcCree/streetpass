@@ -9,17 +9,6 @@ Convars.SetValue("tf_passtime_powerball_threshold", 10000);
 Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 
-//TODO:
-//delete protection time [x]
-//trigger protection on ball spawn [x]
-//pasive reload []
-
-//SP_FURNACE:
-//Art pass the roof,
-//3d skybox
-//align floor coal textures
-//goal demo trimp
-
 // StreetPASS convars
 ::streetpassConvars <- {
     ["sp_medic_replicates_democharge"] = {type = "int", value = 0, desc = "Allows the medic to mimic demomans shield charge while holding the ball", def = 0},
@@ -126,12 +115,12 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.2";
+const VERSION = "1.6.3";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
 ::defenseTeam <- RED;
-::jackTeam <- BLUE;
+::jackTeam <- RED;
 ::ballSpawned <- false;
 ::ballSpawnTime <- 0.0;
 
@@ -161,6 +150,7 @@ if(redGoal == null || blueGoal == null)
 // if we will ever need the swap zone 
 // we need to make it an array that supports multiple
 // also rename it to sp_swapzone for consistency
+// + make it like others so add outputs in code
 // ::swapZone <- Entities.FindByName(null, "streetpass_swapzone");
 
 ::redSpawns <- [];
@@ -470,6 +460,29 @@ class ProtectionArea {
 }
 //----------------------
 
+//--- NO BALL ZONE LOGIC ---
+::noBallZones <- [];
+::dontSwap <- false;
+
+::PlayerDisableBallPickup <- function() {
+    if(!IsPlayerValid(activator))
+        return;
+
+    if(activator.GetTeam() == attackerTeam)
+        return;
+
+    activator.AddCustomAttribute("cannot pick up intelligence", 1, -1);
+    dontSwap = true;
+}
+
+::PlayerEnableBallPickup <- function() {
+    if(!IsPlayerValid(activator))
+        return;
+
+    activator.RemoveCustomAttribute("cannot pick up intelligence");
+}
+//----------------------
+
 ::StreetpassThink <- function() {
     local ball = Entities.FindByClassname(null, "passtime_ball");
 
@@ -550,6 +563,9 @@ class ProtectionArea {
         return;
 
     if (jackOwner == null)
+        return;
+
+    if(dontSwap)
         return;
 
     FireScriptEvent("sp_swap_sides", {swaper = jackOwner, old_defense = defenseTeam, old_attack = attackerTeam});
@@ -914,6 +930,7 @@ getroottable()[EventsID] <-
     OnGameEvent_pass_get = function(params) {
         local owner = PlayerInstanceFromIndex(params.owner);
         jackTeam = owner.GetTeam();
+        dontSwap = false;
 
         if(goal == null)
         {
@@ -938,6 +955,7 @@ getroottable()[EventsID] <-
 
         local passer = PlayerInstanceFromIndex(params.passer);
         local catcher = PlayerInstanceFromIndex(params.catcher);
+        dontSwap = false;
 
         if (catcher.GetTeam() != passer.GetTeam()) {
             local pName = NetProps.GetPropString(passer, "m_szNetname");
@@ -1078,6 +1096,13 @@ function OnPostSpawn()
             blueSpawns.append(spawn);
         else
             redSpawns.append(spawn);
+    }
+
+    local noBall = null;
+    while (noBall = Entities.FindByName(noBall, "sp_no_ball_zone")) {
+        EntityOutputs.AddOutput(noBall, "OnStartTouch", "streetpass_script", "RunScriptCode", "PlayerDisableBallPickup()", 0, -1);
+        EntityOutputs.AddOutput(noBall, "OnEndTouch", "streetpass_script", "RunScriptCode", "PlayerEnableBallPickup()", 0.5, -1);
+        noBallZones.append(noBall);
     }
 
     local visual = null;
