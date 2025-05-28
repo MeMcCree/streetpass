@@ -30,6 +30,10 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_passive_reload_delay"] = {type = "float", value = 1.0, desc = "", def = 1.0},
 };
 
+//visuals on swap sides
+//ball pos in parameters
+//auto + multi swapzone trigger for consistency
+
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
 gamerules.ValidateScriptScope();
 
@@ -115,7 +119,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.3";
+const VERSION = "1.6.4";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -147,11 +151,8 @@ if(redGoal == null || blueGoal == null)
 
 ::visualizers <- [];
 
-// if we will ever need the swap zone 
-// we need to make it an array that supports multiple
-// also rename it to sp_swapzone for consistency
-// + make it like others so add outputs in code
-// ::swapZone <- Entities.FindByName(null, "streetpass_swapzone");
+::swapZones <- [];
+::swapZoneVisuals <- [];
 
 ::redSpawns <- [];
 ::blueSpawns <- [];
@@ -355,6 +356,13 @@ printl("------------------------");
     return -1;
 }
 
+::PlayerHasBall <- function(player) {
+    if(player.GetActiveWeapon().GetClassname() == "tf_weapon_passtime_gun")
+        return true;
+
+    return false;
+}
+
 //--- TOP AREA LOGIC ---
 class ProtectionArea {
     triggers = null;
@@ -364,7 +372,6 @@ class ProtectionArea {
 
     constructor(_team, triggerName)
     {
-        printl("CONSTRUCTOR: " + _team + ", " + triggerName);
         this.triggers = [];
         this.players = [];
         this.isActive = false;
@@ -468,6 +475,9 @@ class ProtectionArea {
     if(!IsPlayerValid(activator))
         return;
 
+    if(!PlayerHasBall(activator))
+        return;
+
     if(activator.GetTeam() == attackerTeam)
         return;
 
@@ -568,7 +578,7 @@ class ProtectionArea {
     if(dontSwap)
         return;
 
-    FireScriptEvent("sp_swap_sides", {swaper = jackOwner, old_defense = defenseTeam, old_attack = attackerTeam});
+    FireScriptEvent("sp_swap_sides", {swaper = jackOwner, swapzone = caller, ball_pos = activator.GetOrigin(), old_defense = defenseTeam, old_attack = attackerTeam});
 
     //set varibles
     local hold = attackerTeam;
@@ -675,7 +685,7 @@ getroottable()[EventsID] <-
     OnGameEvent_scorestats_accumulated_update = function(params) { delete getroottable()[EventsID] }
 
     ////////// Add your events here //////////////
-    //sp_swap_sides {swaper - player index, old_defense - team number, old_attack - team number},
+    //sp_swap_sides {swaper - player index, swapzone - handle, old_defense - team number, old_attack - team number, ball_pos - where the ball landed},
     //sp_pass_intercept {victim - player index, intercepter - player index},
     //sp_pass_spawn {},
     //sp_pass_splashed {splasher - player index, old_ball - team number}
@@ -1086,6 +1096,26 @@ getroottable()[EventsID] <-
         local player = GetPlayerFromUserID(params.userid);
         player.GetScriptScope().isBlastJumping = false;
     }
+
+    OnScriptEvent_sp_swap_sides = function (params) {
+        for (local i = 0; i < swapZoneVisuals.len(); i++) {
+            local visual = swapZoneVisuals[i];
+            visual.SetAbsOrigin(Vector(params.ball_pos.x, params.ball_pos.y, visual.GetOrigin().z));
+            visual.AcceptInput("FireUser1", "", null, null);
+            params.swapzone.AcceptInput("FireUser1", "", null, null);
+            //User2 and User3 are set up for team related stuff
+            if(params.old_defense == RED)
+            {
+                visual.AcceptInput("FireUser2", "", null, null);
+                params.swapzone.AcceptInput("FireUser2", "", null, null);
+            }
+            else
+            {
+                visual.AcceptInput("FireUser3", "", null, null);
+                params.swapzone.AcceptInput("FireUser3", "", null, null);
+            }
+        }
+    }
 }
 
 function OnPostSpawn()
@@ -1108,6 +1138,17 @@ function OnPostSpawn()
     local visual = null;
     while (visual = Entities.FindByName(visual, "visualizer")) {
         visualizers.append(visual);
+    }
+
+    local swapzone = null;
+    while (swapzone = Entities.FindByName(swapzone, "sp_swapzone")) {
+        EntityOutputs.AddOutput(swapzone, "OnStartTouch", "streetpass_script", "RunScriptCode", "SwapSides()", 0, -1);
+        swapZones.append(swapzone);
+    }
+
+    local szVisual = null
+    while (szVisual = Entities.FindByName(szVisual, "sp_swapzone_visual")) {
+        swapZoneVisuals.append(szVisual);
     }
 
     defendersProtection = ProtectionArea(defenseTeam, "sp_defenders_protection");
