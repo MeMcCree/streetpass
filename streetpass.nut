@@ -119,7 +119,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.4";
+const VERSION = "1.6.5";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -353,6 +353,23 @@ printl("------------------------");
         }
     }
 
+    local overlay = "";
+    if (self.GetTeam() == attackerTeam) {
+        overlay += "attacker_";
+    } else {
+        overlay += "defender_";
+    }
+
+    if (self.GetTeam() == RED) {
+        overlay += "red_overlay";
+    } else if (self.GetTeam() == BLUE) {
+        overlay += "blue_overlay";
+    } else {
+        overlay = "";
+    }
+
+    self.SetScriptOverlayMaterial("streetpass/" + overlay);
+
     return -1;
 }
 
@@ -538,8 +555,10 @@ class ProtectionArea {
         if (IsPlayerValid(player))
             continue;
 
-        if (player)
+        if (player) {
             NetProps.SetPropString(player, "m_iszScriptThinkFunction", "");
+            player.SetScriptOverlayMaterial("");
+        }
     }
 }
 
@@ -705,6 +724,8 @@ getroottable()[EventsID] <-
         local ammo = Entities.FindByClassname(null, "tf_ammo_pack");
         if (ammo)
             ammo.Destroy();
+
+        player.SetScriptOverlayMaterial("");
     }
 
     OnGameEvent_player_spawn = function(params) {
