@@ -1,0 +1,8 @@
+"UnlitGeneric"
+{
+	"$basetexture" "streetpass/attacker_blue_overlay"
+	"$translucent" 1
+	"$ignorez" 1
+
+	"$basetexturetransform" "center 0.985 0.5 scale 18 12 rotate 0 translate 0 0"
+}
