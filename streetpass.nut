@@ -30,10 +30,6 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_passive_reload_delay"] = {type = "float", value = 1.0, desc = "", def = 1.0},
 };
 
-//visuals on swap sides
-//ball pos in parameters
-//auto + multi swapzone trigger for consistency
-
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
 gamerules.ValidateScriptScope();
 
@@ -498,15 +494,14 @@ class ProtectionArea {
     if(activator.GetTeam() == attackerTeam)
         return;
 
+    activator.AddCustomAttribute("cannot pick up intelligence", 1, -1);
+    dontSwap = true;
+
     self.AcceptInput("FireUser1", "", null, null);
-    //User2 and User3 are set up for team related stuff
     if(defenseTeam == RED)
         self.AcceptInput("FireUser2", "", null, null);
     else
         self.AcceptInput("FireUser3", "", null, null);
-
-    activator.AddCustomAttribute("cannot pick up intelligence", 1, -1);
-    dontSwap = true;
 }
 
 ::PlayerEnableBallPickup <- function() {
