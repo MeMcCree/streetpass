@@ -119,7 +119,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.5";
+const VERSION = "1.6.6";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -497,6 +497,13 @@ class ProtectionArea {
 
     if(activator.GetTeam() == attackerTeam)
         return;
+
+    self.AcceptInput("FireUser1", "", null, null);
+    //User2 and User3 are set up for team related stuff
+    if(defenseTeam == RED)
+        self.AcceptInput("FireUser2", "", null, null);
+    else
+        self.AcceptInput("FireUser3", "", null, null);
 
     activator.AddCustomAttribute("cannot pick up intelligence", 1, -1);
     dontSwap = true;
