@@ -15,8 +15,7 @@ first to 5 points wins<br>
     -uses vscript so it can be hosted on steam networking<br>
     
 <h2>Avaible Classes:</h2>
-    -Soldier
-    -Demoman
-*Experimental*
-    -Medic
-    -Pyro
+    - Soldier <br>
+    - Demoman <br>
+    - Medic <i>(Experimental)</i> <br>
+    - Pyro <i>(Experimental)</i><br>
