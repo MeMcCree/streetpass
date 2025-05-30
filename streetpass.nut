@@ -115,7 +115,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.7";
+const VERSION = "1.6.8";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -434,13 +434,16 @@ class ProtectionArea {
             if(!this.isActive)
                 return;
 
+        local teleported = []
         for (local i = 0; i < this.players.len(); i++) {
             local player = this.players[i];
 
             if(player.GetTeam() != this.team) {
                 player.ForceRespawn();
+                teleported.append(player.entindex())
             }
         }
+        FireScriptEvent("sp_protection_triggered", { team = this.team, players_teleprted = teleported });
     }
 
     function Enable() {
@@ -500,21 +503,21 @@ class ProtectionArea {
     activator.AddCustomAttribute("cannot pick up intelligence", 1, -1);
     dontSwap = true;
 
-    self.AcceptInput("FireUser1", "", null, null);
+    self.AcceptInput("FireUser1", "", activator, self);
     if(defenseTeam == RED)
-        self.AcceptInput("FireUser2", "", null, null);
+        self.AcceptInput("FireUser2", "", activator, self);
     else
-        self.AcceptInput("FireUser3", "", null, null);
+        self.AcceptInput("FireUser3", "", activator, self);
 
     for (local i = 0; i < noBallZoneVisuals.len(); i++) {
         local visual = noBallZoneVisuals[i];
         visual.SetAbsOrigin(Vector(activator.GetOrigin().x, activator.GetOrigin().y, visual.GetOrigin().z));
-        visual.AcceptInput("FireUser1", "", null, null);
+        visual.AcceptInput("FireUser1", "", activator, self);
         //User2 and User3 are set up for team related stuff
         if (activator.GetTeam() == RED) {
-            visual.AcceptInput("FireUser2", "", null, null);
+            visual.AcceptInput("FireUser2", "", activator, self);
         } else {
-            visual.AcceptInput("FireUser3", "", null, null);
+            visual.AcceptInput("FireUser3", "", activator, self);
         }
     }
 }
@@ -725,10 +728,11 @@ getroottable()[EventsID] <-
     //sp_pass_intercept {victim - player index, intercepter - player index},
     //sp_pass_spawn {},
     //sp_pass_splashed {splasher - player index, old_ball - team number}
-    //sp_protection_enabled {}
-    //sp_protection_disabled {}
+    //sp_protection_enabled {} UNUSED
+    //sp_protection_disabled {} UNUSED
     //sp_blast_jump { userid, playsound - bool }
     //sp_blast_jump_landed { userid }
+    //sp_protection_triggered { team - team number, players_teleprted - array }
 
     OnGameEvent_player_death = function(params) {
         local player = GetPlayerFromUserID(params.userid);
@@ -1136,21 +1140,22 @@ getroottable()[EventsID] <-
     }
 
     OnScriptEvent_sp_swap_sides = function (params) {
+        local swaper = PlayerInstanceFromIndex(params.swaper);
         for (local i = 0; i < swapZoneVisuals.len(); i++) {
             local visual = swapZoneVisuals[i];
             visual.SetAbsOrigin(Vector(params.ball_pos.x, params.ball_pos.y, visual.GetOrigin().z));
-            visual.AcceptInput("FireUser1", "", null, null);
-            params.swapzone.AcceptInput("FireUser1", "", null, null);
+            visual.AcceptInput("FireUser1", "", swaper, params.swapzone);
+            params.swapzone.AcceptInput("FireUser1", "", swaper, params.swapzone);
             //User2 and User3 are set up for team related stuff
             if(params.old_defense == RED)
             {
-                visual.AcceptInput("FireUser2", "", null, null);
-                params.swapzone.AcceptInput("FireUser2", "", null, null);
+                visual.AcceptInput("FireUser2", "", swaper, params.swapzone);
+                params.swapzone.AcceptInput("FireUser2", "", swaper, params.swapzone);
             }
             else
             {
-                visual.AcceptInput("FireUser3", "", null, null);
-                params.swapzone.AcceptInput("FireUser3", "", null, null);
+                visual.AcceptInput("FireUser3", "", swaper, params.swapzone);
+                params.swapzone.AcceptInput("FireUser3", "", swaper, params.swapzone);
             }
         }
     }
