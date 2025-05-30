@@ -8,7 +8,7 @@ defenders can put the ball into a swap zone to change thier positon of defenders
 first to 5 points wins<br>
 
 <h2>Gameplay differences:</h2>
-    -infinite health and ammo <br>
+    -infinite health and reserve ammo <br>
     -attack\defend style gameplay <br>
     -smaller team sizes (duh) <br>
     -smaller maps <br>
@@ -17,5 +17,6 @@ first to 5 points wins<br>
 <h2>Avaible Classes:</h2>
     -Soldier
     -Demoman
+*Experimental*
     -Medic
-    -Pyro!
+    -Pyro
