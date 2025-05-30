@@ -115,7 +115,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.6";
+const VERSION = "1.6.7";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -149,6 +149,8 @@ if(redGoal == null || blueGoal == null)
 
 ::swapZones <- [];
 ::swapZoneVisuals <- [];
+
+::noBallZoneVisuals <- [];
 
 ::redSpawns <- [];
 ::blueSpawns <- [];
@@ -494,6 +496,7 @@ class ProtectionArea {
     if(activator.GetTeam() == attackerTeam)
         return;
 
+    local activator = activator;
     activator.AddCustomAttribute("cannot pick up intelligence", 1, -1);
     dontSwap = true;
 
@@ -502,6 +505,18 @@ class ProtectionArea {
         self.AcceptInput("FireUser2", "", null, null);
     else
         self.AcceptInput("FireUser3", "", null, null);
+
+    for (local i = 0; i < noBallZoneVisuals.len(); i++) {
+        local visual = noBallZoneVisuals[i];
+        visual.SetAbsOrigin(Vector(activator.GetOrigin().x, activator.GetOrigin().y, visual.GetOrigin().z));
+        visual.AcceptInput("FireUser1", "", null, null);
+        //User2 and User3 are set up for team related stuff
+        if (activator.GetTeam() == RED) {
+            visual.AcceptInput("FireUser2", "", null, null);
+        } else {
+            visual.AcceptInput("FireUser3", "", null, null);
+        }
+    }
 }
 
 ::PlayerEnableBallPickup <- function() {
@@ -1172,6 +1187,11 @@ function OnPostSpawn()
     local szVisual = null
     while (szVisual = Entities.FindByName(szVisual, "sp_swapzone_visual")) {
         swapZoneVisuals.append(szVisual);
+    }
+
+    local szVisual = null
+    while (szVisual = Entities.FindByName(szVisual, "sp_no_ball_zone_visual")) {
+        noBallZoneVisuals.append(szVisual);
     }
 
     defendersProtection = ProtectionArea(defenseTeam, "sp_defenders_protection");
