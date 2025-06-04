@@ -2,7 +2,7 @@ versioninfo
 {
 	"editorversion" "400"
 	"editorbuild" "8869"
-	"mapversion" "373"
+	"mapversion" "374"
 	"formatversion" "100"
 	"prefab" "0"
 }
@@ -89,12 +89,12 @@ bgimages_plus
 world
 {
 	"id" "1"
-	"mapversion" "373"
+	"mapversion" "374"
 	"classname" "worldspawn"
-	"detailmaterial" "detail/detailsprites_trainyard"
-	"detailvbsp" "detail_trainyard.vbsp"
 	"maxpropscreenwidth" "-1"
-	"skyname" "sky_gravel_01"
+	"skyname" "sky_day01_01"
+	"detailvbsp" "detail.vbsp"
+	"detailmaterial" "detail/detailsprites"
 	solid
 	{
 		"id" "261"
@@ -2823,29 +2823,6 @@ entity
 }
 entity
 {
-	"id" "42796"
-	"classname" "env_fog_controller"
-	"angles" "0 0 0"
-	"farz" "-1"
-	"fogcolor" "228 221 205"
-	"fogcolor2" "255 255 255"
-	"fogdir" "1 0 0"
-	"fogenable" "1"
-	"fogend" "6500"
-	"fogmaxdensity" ".2"
-	"fogstart" "1000"
-	"spawnflags" "0"
-	"origin" "64 -16 -1454.36"
-	editor
-	{
-		"color" "255 255 255"
-		"visgroupshown" "1"
-		"visgroupautoshown" "1"
-		"logicalpos" "[3000 -4768]"
-	}
-}
-entity
-{
 	"id" "371954"
 	"classname" "info_player_teamspawn"
 	"angles" "0 270 0"
@@ -4685,22 +4662,6 @@ entity
 		"visgroupshown" "1"
 		"visgroupautoshown" "1"
 		"logicalpos" "[0 8000]"
-	}
-}
-entity
-{
-	"id" "42786"
-	"classname" "shadow_control"
-	"angles" "66 300 0"
-	"color" "109 121 152"
-	"distance" "75"
-	"origin" "48 -16 -1456"
-	editor
-	{
-		"color" "220 30 220"
-		"visgroupshown" "1"
-		"visgroupautoshown" "1"
-		"logicalpos" "[3000 -14268]"
 	}
 }
 entity
@@ -11343,8 +11304,8 @@ cameras
 	"activecamera" "0"
 	camera
 	{
-		"position" "[-510.132 1185.99 -1608.38]"
-		"look" "[-309.661 1134.53 -1774.79]"
+		"position" "[-91.6472 791.704 -1383.05]"
+		"look" "[-107.967 532.068 -1436.45]"
 	}
 	camera
 	{
