@@ -115,7 +115,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.8";
+const VERSION = "1.6.9";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -275,7 +275,7 @@ printl("------------------------");
             weapon.SetClip1(weapon.GetMaxClip1());
 
         if (GetSpCvar("sp_infinite_clip") && weapon.GetClassname() == "tf_weapon_particle_cannon")
-            NetProps.SetPropFloat(weapon, "m_flEnergy", 100.0);
+            NetProps.SetPropFloat(weapon, "m_flEnergy", 20.0);
 
         local ammo_type = NetProps.GetPropInt(weapon, "m_iPrimaryAmmoType");
         if (ammo_type > 0)
@@ -305,12 +305,12 @@ printl("------------------------");
                     continue;
 
                 if (held_weapon.UsesClipsForAmmo1() && held_weapon.Clip1() != held_weapon.GetMaxClip1()) {
-                    printl(held_weapon.GetAttribute("sound_reload", 0));
                     held_weapon.SetClip1(held_weapon.Clip1() + 1);
                 }
 
-                if (held_weapon.GetClassname() == "tf_weapon_particle_cannon" && NetProps.GetPropFloat(held_weapon, "m_flEnergy") != 100)
-                    NetProps.SetPropFloat(held_weapon, "m_flEnergy", NetProps.GetPropFloat(held_weapon, "m_flEnergy") + 25.0);
+                if (held_weapon.GetClassname() == "tf_weapon_particle_cannon" && NetProps.GetPropFloat(held_weapon, "m_flEnergy") < 20.0) {
+                    NetProps.SetPropFloat(held_weapon, "m_flEnergy", min(20.0, NetProps.GetPropFloat(held_weapon, "m_flEnergy") + 5.0));
+                }
             }
         }
     }
@@ -590,7 +590,7 @@ class ProtectionArea {
     return (a > b) ? a : b;
 }
 
-::IsPointInTrigger <- function(point, trigger){
+::IsPointInTrigger <- function(point, trigger) {
     trigger.RemoveSolidFlags(4)  // FSOLID_NOT_SOLID
     local trace =
     {
@@ -1026,7 +1026,7 @@ getroottable()[EventsID] <-
                 weapon.SetClip1(weapon.Clip1() + 1);
 
             if (GetSpCvar("sp_reload_on_pass") && weapon.GetClassname() == "tf_weapon_particle_cannon" && NetProps.GetPropFloat(weapon, "m_flEnergy") != 100)
-                NetProps.SetPropFloat(weapon, "m_flEnergy", NetProps.GetPropFloat(weapon, "m_flEnergy") + 25.0);
+                NetProps.SetPropFloat(weapon, "m_flEnergy", min(20.0, NetProps.GetPropFloat(weapon, "m_flEnergy") + 5.0));
         }
     }
 
