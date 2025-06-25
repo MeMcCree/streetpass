@@ -129,6 +129,9 @@ const MAX_WEAPONS = 8;
 ::ballSpawned <- false;
 ::ballSpawnTime <- 0.0;
 
+::ClientCommand <- Entities.CreateByClassname("point_clientcommand");
+Entities.DispatchSpawn(ClientCommand);
+
 ::redGoal <- Entities.FindByName(null, "red_goal");
 ::blueGoal <- Entities.FindByName(null, "blue_goal");
 ::goal <- null;
@@ -1041,8 +1044,8 @@ getroottable()[EventsID] <-
             local cName = NetProps.GetPropString(catcher, "m_szNetname");
             IncStat(params.catcher, STAT_INTERCEPT);
             FireScriptEvent("sp_pass_intercept", {victim = params.passer, intercepter = params.catcher});
-            //removing the blur effect
-            SendToConsole("r_screenoverlay \"\"")
+
+            ClientCommand.AcceptInput("Command", "r_screenoverlay \"\"", catcher, null);
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
@@ -1119,13 +1122,13 @@ getroottable()[EventsID] <-
         local vName = NetProps.GetPropString(victim, "m_szNetname");
         local aName = NetProps.GetPropString(attacker, "m_szNetname");
 
+        ClientCommand.AcceptInput("Command", "r_screenoverlay \"\"", attacker, null);
+
         if (victim.GetTeam() == attacker.GetTeam())
             return;
 
         IncStat(params.attacker, STAT_STEAL);
         attacker.GetScriptScope().lastReload = Time();
-        //removing the blur effect
-        SendToConsole("r_screenoverlay \"\"")
 
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+aName+"\x01 Stole the ball from "+vName+"\x01!");
     }
