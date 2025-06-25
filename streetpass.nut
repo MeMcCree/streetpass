@@ -25,10 +25,15 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
     ["sp_gibigao_protection"] = {type = "int", value = 0, desc = "While enabled disables scoring if player is not blast jumping", def = 0},
     ["sp_exec_cfg"] = {type = "int", value = 0, desc = "Should the script automaticly exec streetpass_vscripts.cfg", def = 0},
-    ["sp_reload_on_pass"] = {type = "int", value = 1, desc = "", def = 1},
-    ["sp_passive_reload"] = {type = "int", value = 0, desc = "", def = 1},
-    ["sp_passive_reload_delay"] = {type = "float", value = 1.0, desc = "", def = 1.0},
+    ["sp_reload_on_pass"] = {type = "int", value = 1, desc = "Allows for a reload when you get passed to or intercept the ball", def = 1},
+    ["sp_passive_reload"] = {type = "int", value = 0, desc = "Enables passive reload when holding the ball", def = 1},
+    ["sp_passive_reload_delay"] = {type = "float", value = 1.0, desc = "Delay between passive reloads", def = 1.0},
+    ["sp_remove_intrception_protection"] = {type = "int", value = 0, desc = "Removes the protection after a steal or intercept", def = 0},
 };
+
+//TODO: rework gibigao for 2v2 and so it works better try the cond blastjump,
+//DID: fixed protection areas, added missing discriptions to convars, fixed an error occuring when a person disconnected before protection triggered, 
+//removed the blury overlay from stealing and intercepting, added a convar for removing the steal protection
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
 gamerules.ValidateScriptScope();
@@ -115,7 +120,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.9";
+const VERSION = "1.6.10";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -251,17 +256,18 @@ printl("------------------------");
         self.ForceRespawn();
 
     //removing interception effects
-    if (self.InCond(Constants.ETFCond.TF_COND_PASSTIME_INTERCEPTION))
+    if (self.InCond(Constants.ETFCond.TF_COND_PASSTIME_INTERCEPTION) && GetSpCvar("sp_remove_intrception_protection") >= 1)
         self.RemoveCondEx(Constants.ETFCond.TF_COND_PASSTIME_INTERCEPTION, true);
 
     if (self.InCond(Constants.ETFCond.TF_COND_BURNING))
         self.RemoveCond(Constants.ETFCond.TF_COND_BURNING);
 
-    if (self.InCond(Constants.ETFCond.TF_COND_KNOCKED_INTO_AIR))
-        self.RemoveCond(Constants.ETFCond.TF_COND_KNOCKED_INTO_AIR);
+    // removed this cuz it may couse bad things in map logic and pyro doesnt even have airblast so its not needed
+    // if (self.InCond(Constants.ETFCond.TF_COND_KNOCKED_INTO_AIR))
+    //     self.RemoveCond(Constants.ETFCond.TF_COND_KNOCKED_INTO_AIR);
 
-    if (self.InCond(Constants.ETFCond.TF_COND_AIR_CURRENT))
-        self.RemoveCond(Constants.ETFCond.TF_COND_AIR_CURRENT);
+    // if (self.InCond(Constants.ETFCond.TF_COND_AIR_CURRENT))
+    //     self.RemoveCond(Constants.ETFCond.TF_COND_AIR_CURRENT);
 
     //infinite health
     if ((!matchEnded || self.GetTeam() == winnerTeam) && !self.IsFakeClient())
@@ -400,7 +406,7 @@ class ProtectionArea {
         }
     }
 
-    function SetTeam(_team) {
+    function SetAreaTeam(_team) {
         this.team = _team;
     }
 
@@ -408,7 +414,6 @@ class ProtectionArea {
         if(!IsPlayerValid(activator))
             return;
 
-        activator.GetScriptScope().protectionTriggerIdx = caller.GetScriptScope().idx;
         this.players.append(activator);
     }
 
@@ -429,14 +434,35 @@ class ProtectionArea {
         }
     }
 
+    function RemovePlayer(player) {
+        if(!IsPlayerValid(player))
+            return;
+
+        for (local i = 0; i < this.players.len(); i++) {
+            if(this.players[i] == player){
+                this.players.remove(i);
+                break;
+            }
+        }
+    }
+
+    function AddPlayer(player) {
+        if(!IsPlayerValid(player))
+            return;
+
+        this.players.append(player);
+    }
+
     function OnTrigger(force = false) {
         if(!force)
             if(!this.isActive)
                 return;
 
         local teleported = []
+        printl(this.team)
         for (local i = 0; i < this.players.len(); i++) {
             local player = this.players[i];
+            printl(player)
 
             if(player.GetTeam() != this.team) {
                 player.ForceRespawn();
@@ -624,8 +650,8 @@ class ProtectionArea {
     attackerTeam = defenseTeam;
     defenseTeam = hold;
 
-    defendersProtection.SetTeam(defenseTeam);
-    attackersProtection.SetTeam(attackerTeam);
+    defendersProtection.SetAreaTeam(defenseTeam);
+    attackersProtection.SetAreaTeam(attackerTeam);
 
     jackTeam = 0;
     sideSwaps += 1;
@@ -752,12 +778,11 @@ getroottable()[EventsID] <-
     OnGameEvent_player_spawn = function(params) {
         local player = GetPlayerFromUserID(params.userid);
         player.ValidateScriptScope();
-        player.GetScriptScope().protectionTriggerIdx <- null;
         player.GetScriptScope().isBlastJumping <- false;
         player.GetScriptScope().caberTime <- 0;
         player.GetScriptScope().caberTimeSet <- false;
         player.GetScriptScope().lastReload <- Time();
-        player.GetScriptScope().oldTeam <- player.GetTeam();
+        player.GetScriptScope().oldTeam <- params.team;
         AddThinkToEnt(player, "PlayerThink");
     }
 
@@ -879,7 +904,9 @@ getroottable()[EventsID] <-
         SetData("redScore", 0);
     }
 
-    // OnGameEvent_teamplay_round_start = function(params)
+    // OnGameEvent_teamplay_round_start = function(params) {
+    // }
+
     //HACK(i guess): event above starts before spawn wich leads to incorect spawns but this is before so im gonna use this xd
     OnGameEvent_recalculate_holidays = function(params) {
         if (GetData("winningTeam") == BLUE) {
@@ -1014,6 +1041,8 @@ getroottable()[EventsID] <-
             local cName = NetProps.GetPropString(catcher, "m_szNetname");
             IncStat(params.catcher, STAT_INTERCEPT);
             FireScriptEvent("sp_pass_intercept", {victim = params.passer, intercepter = params.catcher});
+            //removing the blur effect
+            SendToConsole("r_screenoverlay \"\"")
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
@@ -1095,6 +1124,8 @@ getroottable()[EventsID] <-
 
         IncStat(params.attacker, STAT_STEAL);
         attacker.GetScriptScope().lastReload = Time();
+        //removing the blur effect
+        SendToConsole("r_screenoverlay \"\"")
 
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+aName+"\x01 Stole the ball from "+vName+"\x01!");
     }
@@ -1159,6 +1190,12 @@ getroottable()[EventsID] <-
             }
         }
     }
+
+    OnGameEvent_player_disconnect = function (params) {
+        local player = GetPlayerFromUserID(params.userid);
+        defendersProtection.RemovePlayer(player);
+        attackersProtection.RemovePlayer(player);
+    }
 }
 
 function OnPostSpawn()
@@ -1211,6 +1248,17 @@ function OnPostSpawn()
         local t = attackersProtection.triggers[i];
         EntityOutputs.AddOutput(t, "OnStartTouch", "streetpass_script", "RunScriptCode", "attackersProtection.OnEnter()", 0, -1);
         EntityOutputs.AddOutput(t, "OnEndTouch", "streetpass_script", "RunScriptCode", "attackersProtection.OnExit()", 0, -1);
+    }
+
+    for (local i = 1; i <= MaxPlayers; i++) {
+        local player = PlayerInstanceFromIndex(i)
+
+        if(!IsPlayerValid(player)) continue;
+
+        if(player.GetTeam() == defenseTeam)
+            defendersProtection.AddPlayer(player)
+        else
+            attackersProtection.AddPlayer(player)
     }
 
     AddThinkToEnt(passtimeLogic, "StreetpassThink");
