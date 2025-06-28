@@ -31,10 +31,6 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_remove_intrception_protection"] = {type = "int", value = 0, desc = "Removes the protection after a steal or intercept", def = 0},
 };
 
-//TODO: rework gibigao for 2v2 and so it works better try the cond blastjump,
-//DID: fixed protection areas, added missing discriptions to convars, fixed an error occuring when a person disconnected before protection triggered, 
-//removed the blury overlay from stealing and intercepting, added a convar for removing the steal protection
-
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
 gamerules.ValidateScriptScope();
 
@@ -120,7 +116,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.10";
+const VERSION = "1.6.11";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -432,7 +428,6 @@ class ProtectionArea {
         for (local i = 0; i < this.players.len(); i++) {
             if(this.players[i] == activator){
                 this.players.remove(i);
-                break;
             }
         }
     }
@@ -444,7 +439,6 @@ class ProtectionArea {
         for (local i = 0; i < this.players.len(); i++) {
             if(this.players[i] == player){
                 this.players.remove(i);
-                break;
             }
         }
     }
@@ -462,10 +456,8 @@ class ProtectionArea {
                 return;
 
         local teleported = []
-        printl(this.team)
         for (local i = 0; i < this.players.len(); i++) {
             local player = this.players[i];
-            printl(player)
 
             if(player.GetTeam() != this.team) {
                 player.ForceRespawn();
@@ -765,7 +757,6 @@ getroottable()[EventsID] <-
 
     OnGameEvent_player_death = function(params) {
         local player = GetPlayerFromUserID(params.userid);
-        player.GetScriptScope().isBlastJumping = false;
 
         local weapon = Entities.FindByClassname(null, "tf_dropped_weapon");
         if (weapon)
@@ -781,7 +772,6 @@ getroottable()[EventsID] <-
     OnGameEvent_player_spawn = function(params) {
         local player = GetPlayerFromUserID(params.userid);
         player.ValidateScriptScope();
-        player.GetScriptScope().isBlastJumping <- false;
         player.GetScriptScope().caberTime <- 0;
         player.GetScriptScope().caberTimeSet <- false;
         player.GetScriptScope().lastReload <- Time();
@@ -1039,13 +1029,13 @@ getroottable()[EventsID] <-
         local catcher = PlayerInstanceFromIndex(params.catcher);
         dontSwap = false;
 
+        ClientCommand.AcceptInput("Command", "r_screenoverlay off", catcher, null);
+
         if (catcher.GetTeam() != passer.GetTeam()) {
             local pName = NetProps.GetPropString(passer, "m_szNetname");
             local cName = NetProps.GetPropString(catcher, "m_szNetname");
             IncStat(params.catcher, STAT_INTERCEPT);
             FireScriptEvent("sp_pass_intercept", {victim = params.passer, intercepter = params.catcher});
-
-            ClientCommand.AcceptInput("Command", "r_screenoverlay \"\"", catcher, null);
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
@@ -1070,7 +1060,7 @@ getroottable()[EventsID] <-
         if(owner.GetPlayerClass() == Constants.ETFClass.TF_CLASS_PYRO || owner.GetPlayerClass() == Constants.ETFClass.TF_CLASS_MEDIC)
             return;
 
-        if(GetSpCvar("sp_gibigao_protection") >= 1 && owner.GetScriptScope().isBlastJumping == false)
+        if(GetSpCvar("sp_gibigao_protection") >= 1 && owner.InAirDueToExplosion() == false)
         {
             if(goal == null)
             {
@@ -1122,7 +1112,7 @@ getroottable()[EventsID] <-
         local vName = NetProps.GetPropString(victim, "m_szNetname");
         local aName = NetProps.GetPropString(attacker, "m_szNetname");
 
-        ClientCommand.AcceptInput("Command", "r_screenoverlay \"\"", attacker, null);
+        ClientCommand.AcceptInput("Command", "r_screenoverlay off", attacker, null);
 
         if (victim.GetTeam() == attacker.GetTeam())
             return;
@@ -1163,15 +1153,13 @@ getroottable()[EventsID] <-
     }
     //----------------------------------
 
-    OnScriptEvent_sp_blast_jump = function (params) {
-        local player = GetPlayerFromUserID(params.userid);
-        player.GetScriptScope().isBlastJumping = true;
-    }
+    // OnScriptEvent_sp_blast_jump = function (params) {
+    //     local player = GetPlayerFromUserID(params.userid);
+    // }
 
-    OnScriptEvent_sp_blast_jump_landed = function (params) {
-        local player = GetPlayerFromUserID(params.userid);
-        player.GetScriptScope().isBlastJumping = false;
-    }
+    // OnScriptEvent_sp_blast_jump_landed = function (params) {
+    //     local player = GetPlayerFromUserID(params.userid);
+    // }
 
     OnScriptEvent_sp_swap_sides = function (params) {
         local swaper = PlayerInstanceFromIndex(params.swaper);
