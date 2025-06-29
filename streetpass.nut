@@ -116,7 +116,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.11";
+const VERSION = "1.6.12";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -738,6 +738,19 @@ class ProtectionArea {
     NetProps.SetPropFloat(self, "m_flNextSecondaryAttack", Time() + 1.0);
 }
 
+::GoalAcceptInput <- function(input, value){
+    if(goal == null)
+    {
+       if(attackerTeam == BLUE)
+            blueGoal.AcceptInput(input, value, null, null);
+        else
+            redGoal.AcceptInput(input, value, null, null);
+    }else
+    {
+        goal.AcceptInput(input, value, null, null);
+    }
+}
+
 local EventsID = UniqueString()
 getroottable()[EventsID] <-
 {
@@ -1004,16 +1017,7 @@ getroottable()[EventsID] <-
         jackTeam = owner.GetTeam();
         dontSwap = false;
 
-        if(goal == null)
-        {
-            if(attackerTeam == BLUE)
-                blueGoal.AcceptInput("Enable", "", null, null);
-            else
-                redGoal.AcceptInput("Enable", "", null, null);
-        }else
-        {
-            goal.AcceptInput("Enable", "", null, null);
-        }
+        GoalAcceptInput("Enable", "");
 
         owner.GetScriptScope().lastReload = Time();
     }
@@ -1030,6 +1034,8 @@ getroottable()[EventsID] <-
         dontSwap = false;
 
         ClientCommand.AcceptInput("Command", "r_screenoverlay off", catcher, null);
+
+        GoalAcceptInput("Enable", "");
 
         if (catcher.GetTeam() != passer.GetTeam()) {
             local pName = NetProps.GetPropString(passer, "m_szNetname");
@@ -1062,16 +1068,7 @@ getroottable()[EventsID] <-
 
         if(GetSpCvar("sp_gibigao_protection") >= 1 && owner.InAirDueToExplosion() == false)
         {
-            if(goal == null)
-            {
-                if(attackerTeam == BLUE)
-                    blueGoal.AcceptInput("Disable", "", null, null);
-                else
-                    redGoal.AcceptInput("Disable", "", null, null);
-            }else
-            {
-                goal.AcceptInput("Disable", "", null, null);
-            }
+            GoalAcceptInput("Disable", "");
         }
     }
 
@@ -1113,6 +1110,8 @@ getroottable()[EventsID] <-
         local aName = NetProps.GetPropString(attacker, "m_szNetname");
 
         ClientCommand.AcceptInput("Command", "r_screenoverlay off", attacker, null);
+
+        GoalAcceptInput("Enable", "");
 
         if (victim.GetTeam() == attacker.GetTeam())
             return;
