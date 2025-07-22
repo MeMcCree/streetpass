@@ -116,7 +116,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.12";
+const VERSION = "1.6.13";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -174,6 +174,11 @@ passtimeLogic.KeyValueFromFloat("ball_spawn_countdown", 8);
 ::instantRespawn <- true;
 
 ::jackOwner <- null;
+
+//tf_team entities
+::teams <- []
+
+::ball_spawns <- []
 
 //---- Stats Varibles ----
 const STAT_SCORE = 0;
@@ -697,7 +702,7 @@ class ProtectionArea {
     });
 
     //spawn ball and add time
-    if (GetSpCvar("sp_roundtimer_addtime")) {
+    if (GetSpCvar("sp_roundtimer_addtime") && isOvertime == false) {
         timer.AcceptInput("AddTime", GetSpCvar("sp_roundtimer_addtime").tostring(), self, self);
         NetProps.SetPropInt(gamerules, "m_iRoundState", Constants.ERoundState.GR_STATE_STALEMATE);
         passtimeLogic.AcceptInput("SpawnBall", "", self, self);
@@ -705,20 +710,17 @@ class ProtectionArea {
         passtimeLogic.AcceptInput("SpawnBall", "", self, self);
         return;
     }
-    passtimeLogic.AcceptInput("SpawnBall", "", self, self);
-}
 
-::PlayerSwapTeam <- function(player) {
-    if (IsPlayerValid(player) == false)
-        return;
+    if(!isOvertime)
+        passtimeLogic.AcceptInput("SpawnBall", "", self, self);
+    else{
+        local spawn = ball_spawns[RandomInt(0, ball_spawns.len() - 1)]
 
-    local newTeam = 0;
-    if (player.GetTeam() == RED)
-        newTeam = BLUE;
-    else
-        newTeam = RED;
+        activator.Teleport(true, spawn.GetOrigin(), false, spawn.GetAbsAngles(), false, Vector(0,0,0))
+        activator.SetTeam(0);
 
-    player.ForceChangeTeam(newTeam, true);
+        SendGlobalGameEvent("teamplay_broadcast_audio", { team = 255, sound = "Passtime.BallSpawn", additional_flags = 0, player = -1 })
+    }
 }
 
 ::GivePlayerWeapon <- function(player, classname, itemid, prevWeapon = null) {
@@ -748,6 +750,32 @@ class ProtectionArea {
     }else
     {
         goal.AcceptInput(input, value, null, null);
+    }
+}
+
+::roundWin <- SpawnEntityFromTable("game_round_win",{force_map_reset = true,})
+::isOvertime <- false;
+::HandleEndgame <- function (redOverride = -1, blueOverride = -1) {
+    local scoreRed = redOverride;
+    if(redOverride <= -1)
+        scoreRed = NetProps.GetPropInt(teams[RED], "m_nFlagCaptures")
+
+    local scoreBlue = blueOverride;
+    if(blueOverride <= -1)
+        scoreBlue = NetProps.GetPropInt(teams[BLUE], "m_nFlagCaptures")
+
+    if(abs(scoreBlue - scoreRed) > 0){
+        if(scoreBlue > scoreRed) {
+            NetProps.SetPropInt(roundWin, "m_iTeamNum", BLUE)
+            NetProps.SetPropBool(roundWin, "m_bSwitchTeamsOnWin", true)
+        }else {
+            NetProps.SetPropInt(roundWin, "m_iTeamNum", RED)
+            NetProps.SetPropBool(roundWin, "m_bSwitchTeamsOnWin", false)
+        }
+
+        roundWin.AcceptInput("RoundWin", "", null, null)
+    }else{
+        isOvertime = true
     }
 }
 
@@ -798,9 +826,6 @@ getroottable()[EventsID] <-
     }
 
     OnGameEvent_teamplay_win_panel = function(params) {
-        SetData("winningTeam", params.winning_team);
-        SetData("blueScore", params.blue_score);
-        SetData("redScore", params.red_score);
         // SetData("streetpassConvars", streetpassConvars);
 
         matchEnded = true;
@@ -905,38 +930,12 @@ getroottable()[EventsID] <-
 
     OnGameEvent_tf_game_over = function(params) {
         matchEnded = false;
-        SetData("winningTeam", RED);
-        SetData("blueScore", 0);
-        SetData("redScore", 0);
     }
 
     // OnGameEvent_teamplay_round_start = function(params) {
     // }
 
-    //HACK(i guess): event above starts before spawn wich leads to incorect spawns but this is before so im gonna use this xd
     OnGameEvent_recalculate_holidays = function(params) {
-        if (GetData("winningTeam") == BLUE) {
-            //Reset Scores
-            gamerules.AcceptInput("AddBlueTeamScore", "-"+GetData("blueScore"), null, null);
-            gamerules.AcceptInput("AddRedTeamScore", "-"+GetData("redScore"), null, null);
-
-            gamerules.AcceptInput("AddBlueTeamScore", ""+GetData("redScore"), null, null);
-            gamerules.AcceptInput("AddRedTeamScore", ""+GetData("blueScore"), null, null);
-
-            local blue = Convars.GetStr("mp_tournament_blueteamname");
-            local red = Convars.GetStr("mp_tournament_redteamname");
-            Convars.SetValue("mp_tournament_blueteamname", red);
-            Convars.SetValue("mp_tournament_redteamname", blue);
-
-            for (local i = 1; i <= MaxPlayers ; i++) {
-                local player = PlayerInstanceFromIndex(i)
-                if (IsPlayerValid(player) == false)
-                    continue;
-
-                PlayerSwapTeam(player);
-            }
-        }
-
         if(GetSpCvar("sp_exec_cfg") == 0)
             return;
 
@@ -944,13 +943,6 @@ getroottable()[EventsID] <-
             SendToConsole("exec streetpass_vscripts.cfg");
         else
             SendToServerConsole("exec streetpass_vscripts.cfg");
-    }
-
-    //redo vars on round restart
-    OnGameEvent_teamplay_restart_round = function(params) {
-        SetData("winningTeam", RED);
-        SetData("blueScore", 0);
-        SetData("redScore", 0);
     }
 
     OnScriptHook_OnTakeDamage = function(params) {
@@ -1076,7 +1068,7 @@ getroottable()[EventsID] <-
         // scorer (short)
         // assister (short)
         // points (byte)
-        if (GetSpCvar("sp_roundtimer_addtime"))
+        if (GetSpCvar("sp_roundtimer_addtime") && isOvertime == false)
             timer.AcceptInput("AddTime", GetSpCvar("sp_roundtimer_addtime").tostring(), self, self);
 
         local scorer = PlayerInstanceFromIndex(params.scorer);
@@ -1097,6 +1089,22 @@ getroottable()[EventsID] <-
             IncStat(assister, STAT_KILLSTREAK, 1);
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+sName+"\x01 Scored! Assisted by "+aName);
+        }
+
+        //we do this special check so we can swap teams correctly
+        //the netprops of scores do not update until some time after so we need to check -1 of the max score ammount
+        if(isOvertime || 
+            NetProps.GetPropInt(teams[RED], "m_nFlagCaptures") >= Convars.GetInt("tf_passtime_scores_per_round") - 1 || 
+            NetProps.GetPropInt(teams[BLUE], "m_nFlagCaptures") >= Convars.GetInt("tf_passtime_scores_per_round") - 1){
+            local redScore = 0;
+            local blueScore = 0;
+
+            if(scorer.GetTeam() == RED)
+                redScore = 1;
+            else
+                blueScore = 1;
+
+            HandleEndgame(redScore, blueScore);
         }
     }
 
@@ -1251,6 +1259,21 @@ function OnPostSpawn()
             attackersProtection.AddPlayer(player)
     }
 
+    local team = Entities.FindByClassname(null, "tf_team");
+    while(team)
+    {
+        teams.append(team);
+        team = Entities.FindByClassname(team, "tf_team");
+    }
+
+    local bSpawn = Entities.FindByClassname(null, "info_passtime_ball_spawn");
+    while(bSpawn)
+    {
+        ball_spawns.append(bSpawn);
+        bSpawn = Entities.FindByClassname(bSpawn, "info_passtime_ball_spawn");
+    }
+
+    EntityOutputs.AddOutput(timer, "OnFinished", "streetpass_script", "RunScriptCode", "HandleEndgame()", 0, -1)
     AddThinkToEnt(passtimeLogic, "StreetpassThink");
 }
 
