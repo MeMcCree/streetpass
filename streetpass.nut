@@ -116,7 +116,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.14";
+const VERSION = "1.6.15";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -1104,8 +1104,7 @@ getroottable()[EventsID] <-
         //we do this special check so we can swap teams correctly
         //the netprops of scores do not update until some time after so we need to check -1 of the max score ammount
         if(isOvertime || 
-            NetProps.GetPropInt(teams[RED], "m_nFlagCaptures") >= Convars.GetInt("tf_passtime_scores_per_round") - 1 || 
-            NetProps.GetPropInt(teams[BLUE], "m_nFlagCaptures") >= Convars.GetInt("tf_passtime_scores_per_round") - 1){
+            NetProps.GetPropInt(teams[scorer.GetTeam()], "m_nFlagCaptures") >= Convars.GetInt("tf_passtime_scores_per_round") - 1){
             local redScore = 0;
             local blueScore = 0;
 
