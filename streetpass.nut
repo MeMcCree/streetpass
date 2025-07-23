@@ -116,7 +116,7 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.13";
+const VERSION = "1.6.14";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -716,6 +716,14 @@ class ProtectionArea {
     else{
         local spawn = ball_spawns[RandomInt(0, ball_spawns.len() - 1)]
 
+        for (local i = 1; i <= MaxPlayers; i++) {
+            local player = PlayerInstanceFromIndex(i)
+
+            if(!IsPlayerValid(player)) continue;
+
+            player.ForceRespawn()
+        }
+
         activator.Teleport(true, spawn.GetOrigin(), false, spawn.GetAbsAngles(), false, Vector(0,0,0))
         activator.SetTeam(0);
 
@@ -935,14 +943,16 @@ getroottable()[EventsID] <-
     // OnGameEvent_teamplay_round_start = function(params) {
     // }
 
-    OnGameEvent_recalculate_holidays = function(params) {
+    OnGameEvent_recalculate_holidays = function(params) {        
         if(GetSpCvar("sp_exec_cfg") == 0)
             return;
 
-        if (IsDedicatedServer())
+        if (IsDedicatedServer()) {
             SendToConsole("exec streetpass_vscripts.cfg");
-        else
+        }
+        else {
             SendToServerConsole("exec streetpass_vscripts.cfg");
+        }
     }
 
     OnScriptHook_OnTakeDamage = function(params) {
