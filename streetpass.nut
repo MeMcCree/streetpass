@@ -1,6 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
+const VERSION = "1.6.16";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -116,7 +117,6 @@ if (previousConvars != null)
 
 const BLUE = 3;
 const RED = 2;
-const VERSION = "1.6.15";
 const MAX_WEAPONS = 8;
 
 ::attackerTeam <- BLUE;
@@ -940,10 +940,15 @@ getroottable()[EventsID] <-
         matchEnded = false;
     }
 
-    // OnGameEvent_teamplay_round_start = function(params) {
-    // }
+    //We do this to update the winlimit on new round
+    //cuz if blue team wins and we swap teams it will display incorectly
+    //this also will work with these events: teamplay_round_start, stop_watch_changed, winpanel_show_scores <- the last 2 are not mentioned on valve wiki (i wonder why?)
+    //https://github.com/ValveSoftware/source-sdk-2013/blob/39f6dde8fbc238727c020d13b05ecadd31bda4c0/src/game/client/tf/tf_hud_match_status.cpp#L232
+    OnGameEvent_teamplay_round_active = function (params) {
+        SendGlobalGameEvent("stop_watch_changed", {})
+    }
 
-    OnGameEvent_recalculate_holidays = function(params) {        
+    OnGameEvent_recalculate_holidays = function(params) {
         if(GetSpCvar("sp_exec_cfg") == 0)
             return;
 
