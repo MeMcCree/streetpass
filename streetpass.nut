@@ -1,7 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-const VERSION = "1.6.16";
+const VERSION = "1.6.17";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -9,6 +9,8 @@ Convars.SetValue("tf_passtime_ball_reset_time", 99999);
 Convars.SetValue("tf_passtime_powerball_threshold", 10000);
 Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
+Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
+Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -16,18 +18,18 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
     ["sp_medic_replicates_caber"] = {type = "int", value = 1, desc = "Allows the medic to mimic demomans caber jumps while holding the ball", def = 1},
     ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
     ["sp_demoman_minchargepercentage"] = {type = "float", value = 65.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 65.0},
-    ["sp_demoman_caber_recharge_time"] = {type = "float", value = 0, desc = "The time it takes for caber to recharge, -1 = dont recharge", def = 0},
+    ["sp_demoman_caber_recharge_time"] = {type = "float", value = 1, desc = "The time it takes for caber to recharge, -1 = dont recharge", def = 1},
     ["sp_pyro_primary_charge_rate"] = {type = "float", value = 0.8, desc = "How fast can pyro fire dragons fury", def = 0.8},
     ["sp_pyro_df_splash_radius"] = {type = "float", value = 38.5, desc = "Splash Radius on the dragons fury", def = 38.5},
     ["sp_pyro_detonator_knockback_mult"] = {type = "float", value = 1.6, desc = "Self Knockback multiplier on the detonator", def = 1.6},
     ["sp_pyro_detonator_splash_radius"] = {type = "float", value = 56.0, desc = "Detonator Ball Splash radius", def = 56.0},
     ["sp_infinite_clip"] = {type = "int", value = 0, desc = "Gives infinite weapon clip", def = 0},
     ["sp_instant_respawn"] = {type = "int", value = 1, desc = "Instant respawn (0 - never, 1 - only before ball spawn, 2 - allways)", def = 1},
-    ["sp_roundtimer_addtime"] = {type = "int", value = 240, desc = "The amount of time to add after scoring or swaping in seconds", def = 240},
+    ["sp_roundtimer_addtime"] = {type = "int", value = 0, desc = "The amount of time to add after scoring or swaping in seconds", def = 0},
     ["sp_gibigao_protection"] = {type = "int", value = 0, desc = "While enabled disables scoring if player is not blast jumping", def = 0},
     ["sp_exec_cfg"] = {type = "int", value = 0, desc = "Should the script automaticly exec streetpass_vscripts.cfg", def = 0},
     ["sp_reload_on_pass"] = {type = "int", value = 1, desc = "Allows for a reload when you get passed to or intercept the ball", def = 1},
-    ["sp_passive_reload"] = {type = "int", value = 0, desc = "Enables passive reload when holding the ball", def = 1},
+    ["sp_passive_reload"] = {type = "int", value = 0, desc = "Enables passive reload when holding the ball", def = 0},
     ["sp_passive_reload_delay"] = {type = "float", value = 1.0, desc = "Delay between passive reloads", def = 1.0},
     ["sp_remove_intrception_protection"] = {type = "int", value = 0, desc = "Removes the protection after a steal or intercept", def = 0},
 };
@@ -162,7 +164,6 @@ if(redGoal == null || blueGoal == null)
 ::packRange <- Convars.GetFloat("tf_passtime_pack_range");
 
 ::passtimeLogic <- Entities.FindByClassname(null, "passtime_logic");
-passtimeLogic.KeyValueFromFloat("ball_spawn_countdown", 8);
 
 ::timer <- Entities.FindByClassname(null, "team_round_timer");
 
@@ -711,10 +712,8 @@ class ProtectionArea {
         return;
     }
 
-    if(!isOvertime)
-        passtimeLogic.AcceptInput("SpawnBall", "", self, self);
-    else{
-        local spawn = ball_spawns[RandomInt(0, ball_spawns.len() - 1)]
+    if(isBlitz) {
+        // local spawn = ball_spawns[RandomInt(0, ball_spawns.len() - 1)]
 
         for (local i = 1; i <= MaxPlayers; i++) {
             local player = PlayerInstanceFromIndex(i)
@@ -724,11 +723,13 @@ class ProtectionArea {
             player.ForceRespawn()
         }
 
-        activator.Teleport(true, spawn.GetOrigin(), false, spawn.GetAbsAngles(), false, Vector(0,0,0))
-        activator.SetTeam(0);
+        // activator.Teleport(true, spawn.GetOrigin(), false, spawn.GetAbsAngles(), false, Vector(0,0,0))
+        // activator.SetTeam(0);
 
-        SendGlobalGameEvent("teamplay_broadcast_audio", { team = 255, sound = "Passtime.BallSpawn", additional_flags = 0, player = -1 })
+        // SendGlobalGameEvent("teamplay_broadcast_audio", { team = 255, sound = "Passtime.BallSpawn", additional_flags = 0, player = -1 })
     }
+
+    passtimeLogic.AcceptInput("SpawnBall", "", self, self);
 }
 
 ::GivePlayerWeapon <- function(player, classname, itemid, prevWeapon = null) {
@@ -763,6 +764,7 @@ class ProtectionArea {
 
 ::roundWin <- SpawnEntityFromTable("game_round_win",{force_map_reset = true,})
 ::isOvertime <- false;
+::isBlitz <- false;
 ::HandleEndgame <- function (redOverride = -1, blueOverride = -1) {
     local scoreRed = redOverride;
     if(redOverride <= -1)
@@ -783,8 +785,19 @@ class ProtectionArea {
 
         roundWin.AcceptInput("RoundWin", "", null, null)
     }else{
-        isOvertime = true
+        isOvertime = true;
+        ActivateBlitz();
+        timer.AcceptInput("AddTime", "70", null, null);
+        timer.AcceptInput("Pause", "", null, null);
     }
+}
+::ActivateBlitz <- function(){
+    if(isBlitz)
+        return;
+
+    ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x07FFFF00Blitz Active!");
+    isBlitz = true;
+    NetProps.SetPropInt(passtimeLogic, "m_iBallSpawnCountdownSec", 1)
 }
 
 local EventsID = UniqueString()
@@ -1154,6 +1167,25 @@ getroottable()[EventsID] <-
 
             TriggerProtection(true);
         }
+
+        local stopSound = false
+        printl(params.sound)
+
+        if(params.sound == "Game.Overtime" && !isOvertime)
+            stopSound = true
+
+        if(params.sound == "Announcer.RoundBegins1seconds" && isOvertime) 
+            stopSound = true
+
+        if(stopSound) {
+            for (local i = 0; i <= MaxPlayers; i++) {
+                local player = PlayerInstanceFromIndex(i);
+
+                if(player != null)
+				    StopSoundOn(params.sound, player)
+            }
+        }
+
     }
 
     //---set up for blast jump events---
@@ -1288,6 +1320,7 @@ function OnPostSpawn()
     }
 
     EntityOutputs.AddOutput(timer, "OnFinished", "streetpass_script", "RunScriptCode", "HandleEndgame()", 0, -1)
+    EntityOutputs.AddOutput(timer, "On30SecRemain", "streetpass_script", "RunScriptCode", "ActivateBlitz()", 0, -1)
     AddThinkToEnt(passtimeLogic, "StreetpassThink");
 }
 
