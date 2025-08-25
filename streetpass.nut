@@ -1,7 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-const VERSION = "1.6.17";
+const VERSION = "1.6.18";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -17,7 +17,7 @@ Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
     ["sp_medic_replicates_democharge"] = {type = "int", value = 0, desc = "Allows the medic to mimic demomans shield charge while holding the ball", def = 0},
     ["sp_medic_replicates_caber"] = {type = "int", value = 1, desc = "Allows the medic to mimic demomans caber jumps while holding the ball", def = 1},
     ["sp_medic_replicates_blast_jump"] = {type = "int", value = 1, desc = "Allows the medic to mimic blast jumps while holding the ball", def = 1},
-    ["sp_demoman_minchargepercentage"] = {type = "float", value = 65.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 65.0},
+    ["sp_demoman_minchargepercentage"] = {type = "float", value = 33.0, desc = "The % that the demomans shield will recharge to after a charge (0-100)", def = 33.0},
     ["sp_demoman_caber_recharge_time"] = {type = "float", value = 1, desc = "The time it takes for caber to recharge, -1 = dont recharge", def = 1},
     ["sp_pyro_primary_charge_rate"] = {type = "float", value = 0.8, desc = "How fast can pyro fire dragons fury", def = 0.8},
     ["sp_pyro_df_splash_radius"] = {type = "float", value = 38.5, desc = "Splash Radius on the dragons fury", def = 38.5},
@@ -149,6 +149,11 @@ if(redGoal == null || blueGoal == null)
             }
         }
     }
+}
+
+//Prints a streetpass msg to chat
+::PrintStreetPASS <- function(msg, player = null) {
+    ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 " + msg)
 }
 
 ::visualizers <- [];
@@ -489,7 +494,7 @@ class ProtectionArea {
         FireScriptEvent("sp_protection_disabled", {});
 
         if (notify)
-            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 Protection is no longer active!");
+            PrintStreetPASS("Protection is no longer active!");
     }
 }
 
@@ -568,7 +573,7 @@ class ProtectionArea {
                 local owner = ent.GetOwner();
                 if (owner) {
                     local name = NetProps.GetPropString(owner, "m_szNetname");
-                    ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x01 " + name + " splashed the ball with an arrow!");
+                    PrintStreetPASS(name + " splashed the ball with an arrow!");
                 }
                 dir.Norm();
                 dir = dir.Scale(192.0);
@@ -679,7 +684,7 @@ class ProtectionArea {
         {
             goal.SetTeam(RED);
         }
-        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+oName+"\x01 Swaped sides! \x07FF3F3FRED \x01team is now Attacking!");
+        PrintStreetPASS(oName+"\x01 Swaped sides! \x07FF3F3FRED \x01team is now Attacking!");
     } else {
         if(goal == null)
         {
@@ -689,7 +694,7 @@ class ProtectionArea {
         {
             goal.SetTeam(BLUE);
         }
-        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+oName+"\x01 Swaped sides! \x0799CCFFBLU \x01team is now Attacking!");
+        PrintStreetPASS(oName+"\x01 Swaped sides! \x0799CCFFBLU \x01team is now Attacking!");
     }
 
     //set visualizers
@@ -795,9 +800,9 @@ class ProtectionArea {
     if(isBlitz)
         return;
 
-    ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x07FFFF00Blitz Active!");
     isBlitz = true;
     NetProps.SetPropInt(passtimeLogic, "m_iBallSpawnCountdownSec", 1)
+    PrintStreetPASS("\x07FFFF00Blitz Active!");
 }
 
 local EventsID = UniqueString()
@@ -866,7 +871,7 @@ getroottable()[EventsID] <-
         }
 
         //Print Player stats
-        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x07FFFF00Stats: ");
+        PrintStreetPASS("\x07FFFF00Stats: ");
         for (local i = 0; i < players.len(); i++) {
             local player = PlayerInstanceFromIndex(players[i]);
 
@@ -913,17 +918,17 @@ getroottable()[EventsID] <-
             if (weapon_class == "tf_weapon_shotgun_soldier" || weapon_class == "tf_weapon_shotgun_pyro" || weapon_class == "tf_weapon_shotgun") {
                 removed = true;
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
-                ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Shotgun is not allowed!");
+                PrintStreetPASS("\x07FF0a00Shotgun is not allowed!", player);
                 if (player.GetPlayerClass() == Constants.ETFClass.TF_CLASS_PYRO)
                     GivePlayerWeapon(player, "tf_weapon_flaregun", 351, held_weapon);
             } else if (weapon_class == "tf_weapon_pipebomblauncher") {
                 removed = true;
-                ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Stickybomb launcher is not allowed!");
+                PrintStreetPASS("\x07FF0a00Stickybomb launcher is not allowed!", player);
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
                 // NetProps.SetPropInt(player, "m_Shared.m_bShieldEquipped", 1);
             } else if (weapon_class == "tf_weapon_syringegun_medic") {
                 removed = true;
-                ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Syringe gun is not allowed!");
+                PrintStreetPASS("\x07FF0a00Syringe gun is not allowed!", player);
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
                 GivePlayerWeapon(player, "tf_weapon_crossbow", 305, held_weapon);
             } else if (weapon_class == "tf_weapon_rocketlauncher_fireball") {
@@ -932,7 +937,7 @@ getroottable()[EventsID] <-
                 AddThinkToEnt(held_weapon, "NoAirblast");
             } else if (weapon_class == "tf_weapon_flamethrower") {
                 removed = true;
-                ClientPrint(player, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS]\x07FF0a00 Flamethrower is not allowed!");
+                PrintStreetPASS("\x07FF0a00 Flamethrower is not allowed!", player);
                 NetProps.SetPropEntityArray(player, "m_hMyWeapons", null, i);
                 local cooldown = GetSpCvar("sp_pyro_primary_charge_rate");
                 local weapon = GivePlayerWeapon(player, "tf_weapon_rocketlauncher_fireball", 1178, held_weapon);
@@ -1063,7 +1068,7 @@ getroottable()[EventsID] <-
             IncStat(params.catcher, STAT_INTERCEPT);
             FireScriptEvent("sp_pass_intercept", {victim = params.passer, intercepter = params.catcher});
 
-            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+cName+"\x01 Intercepted "+pName+"\x01 throw!");
+            PrintStreetPASS(cName+"\x01 Intercepted "+pName+"\x01 throw!");
         }
 
         catcher.GetScriptScope().lastReload = Time();
@@ -1108,7 +1113,7 @@ getroottable()[EventsID] <-
         ballSpawned = false;
 
         if (params.assister < 0) {
-            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+sName+"\x01 Scored!");
+            PrintStreetPASS(sName+"\x01 Scored!");
         } else {
             local assister = PlayerInstanceFromIndex(params.assister);
             local aName = NetProps.GetPropString(assister, "m_szNetname");
@@ -1116,7 +1121,7 @@ getroottable()[EventsID] <-
 
             IncStat(assister, STAT_KILLSTREAK, 1);
 
-            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+sName+"\x01 Scored! Assisted by "+aName);
+            PrintStreetPASS(sName+"\x01 Scored! Assisted by "+aName);
         }
 
         //we do this special check so we can swap teams correctly
@@ -1154,7 +1159,7 @@ getroottable()[EventsID] <-
         IncStat(params.attacker, STAT_STEAL);
         attacker.GetScriptScope().lastReload = Time();
 
-        ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FF9100[StreetPASS] \x01"+aName+"\x01 Stole the ball from "+vName+"\x01!");
+        PrintStreetPASS(aName+"\x01 Stole the ball from "+vName+"\x01!");
     }
 
     OnGameEvent_teamplay_broadcast_audio = function(params) {
@@ -1169,7 +1174,6 @@ getroottable()[EventsID] <-
         }
 
         local stopSound = false
-        printl(params.sound)
 
         if(params.sound == "Game.Overtime" && !isOvertime)
             stopSound = true
@@ -1320,7 +1324,7 @@ function OnPostSpawn()
     }
 
     EntityOutputs.AddOutput(timer, "OnFinished", "streetpass_script", "RunScriptCode", "HandleEndgame()", 0, -1)
-    EntityOutputs.AddOutput(timer, "On30SecRemain", "streetpass_script", "RunScriptCode", "ActivateBlitz()", 0, -1)
+    EntityOutputs.AddOutput(timer, "On1minRemain", "streetpass_script", "RunScriptCode", "ActivateBlitz()", 0, -1)
     AddThinkToEnt(passtimeLogic, "StreetpassThink");
 }
 
