@@ -1,7 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-const VERSION = "1.6.18";
+const VERSION = "1.6.19";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -431,10 +431,10 @@ class ProtectionArea {
         if(!IsPlayerValid(activator))
             return;
 
-        if(activator.GetScriptScope().oldTeam == this.team && ballSpawned)
-        {
-            this.Disable();
-        }
+        // if(activator.GetScriptScope().oldTeam == this.team && ballSpawned)
+        // {
+        //     this.Disable();
+        // }
 
         for (local i = 0; i < this.players.len(); i++) {
             if(this.players[i] == activator){
@@ -496,6 +496,12 @@ class ProtectionArea {
         if (notify)
             PrintStreetPASS("Protection is no longer active!");
     }
+
+    function PrintPlayers() {
+        for (local i = 0; i < this.players.len(); i++) {
+            printl(this.players[0])
+        }
+    }
 }
 
 ::defendersProtection <- null;
@@ -514,6 +520,13 @@ class ProtectionArea {
 ::TriggerProtection <- function(force = false) {
     defendersProtection.OnTrigger(force);
     attackersProtection.OnTrigger(force);
+}
+
+::PrintProtectionPlayers <- function() {
+    printl("attackers_prot: ")
+    attackersProtection.PrintPlayers()
+    printl("defenders_prot: ")
+    defendersProtection.PrintPlayers()
 }
 //----------------------
 
@@ -842,13 +855,13 @@ getroottable()[EventsID] <-
         player.GetScriptScope().caberTime <- 0;
         player.GetScriptScope().caberTimeSet <- false;
         player.GetScriptScope().lastReload <- Time();
-        player.GetScriptScope().oldTeam <- params.team;
+        // player.GetScriptScope().oldTeam <- params.team;
         AddThinkToEnt(player, "PlayerThink");
     }
 
     OnGameEvent_player_team = function (params) {
         local player = GetPlayerFromUserID(params.userid);
-        player.GetScriptScope().oldTeam = params.oldteam;
+        // player.GetScriptScope().oldTeam = params.oldteam;
     }
 
     OnGameEvent_teamplay_win_panel = function(params) {
@@ -1289,6 +1302,10 @@ function OnPostSpawn()
         local t = defendersProtection.triggers[i];
         EntityOutputs.AddOutput(t, "OnStartTouch", "streetpass_script", "RunScriptCode", "defendersProtection.OnEnter()", 0, -1);
         EntityOutputs.AddOutput(t, "OnEndTouch", "streetpass_script", "RunScriptCode", "defendersProtection.OnExit()", 0, -1);
+
+        //We do this so we can capture everyone in the trigger instantly
+        t.AcceptInput("Disable", "", null, null);
+        EntFireByHandle(t, "Enable", "", 0.1, null, null)
     }
 
     attackersProtection = ProtectionArea(attackerTeam, "sp_attackers_protection");
@@ -1296,17 +1313,10 @@ function OnPostSpawn()
         local t = attackersProtection.triggers[i];
         EntityOutputs.AddOutput(t, "OnStartTouch", "streetpass_script", "RunScriptCode", "attackersProtection.OnEnter()", 0, -1);
         EntityOutputs.AddOutput(t, "OnEndTouch", "streetpass_script", "RunScriptCode", "attackersProtection.OnExit()", 0, -1);
-    }
 
-    for (local i = 1; i <= MaxPlayers; i++) {
-        local player = PlayerInstanceFromIndex(i)
-
-        if(!IsPlayerValid(player)) continue;
-
-        if(player.GetTeam() == defenseTeam)
-            defendersProtection.AddPlayer(player)
-        else
-            attackersProtection.AddPlayer(player)
+        //We do this so we can capture everyone in the trigger instantly
+        t.AcceptInput("Disable", "", null, null);
+        EntFireByHandle(t, "Enable", "", 0.1, null, null)
     }
 
     local team = Entities.FindByClassname(null, "tf_team");
