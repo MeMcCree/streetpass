@@ -1,7 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-const VERSION = "1.6.19";
+const VERSION = "1.6.20";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -143,10 +143,13 @@ if(redGoal == null || blueGoal == null)
     {
         while(goal = Entities.FindByClassname(goal, "func_passtime_goal"))
         {
-            if(goal.GetName() != "visualizer" || goal.GetName() != "skip")
-            {
-                break;
-            }
+            if(goal.GetName() == "visualizer")
+                continue;
+
+            if(goal.GetName() == "skip")
+                continue;
+
+            break;
         }
     }
 }
