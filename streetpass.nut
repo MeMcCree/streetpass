@@ -1,7 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-const VERSION = "1.6.20";
+const VERSION = "1.6.21";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -11,6 +11,13 @@ Convars.SetValue("tf_passtime_powerball_passpoints", 1);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
+
+/*  1.6.21 change list:
+
+    new convars: sp_blitz_enable, sp_blitz_starttime, sp_overtime_enable;
+    added in chat notiications on convar changes;
+    changed sp_help to correctly display convars;
+*/
 
 // StreetPASS convars
 ::streetpassConvars <- {
@@ -32,6 +39,11 @@ Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
     ["sp_passive_reload"] = {type = "int", value = 0, desc = "Enables passive reload when holding the ball", def = 0},
     ["sp_passive_reload_delay"] = {type = "float", value = 1.0, desc = "Delay between passive reloads", def = 1.0},
     ["sp_remove_intrception_protection"] = {type = "int", value = 0, desc = "Removes the protection after a steal or intercept", def = 0},
+    //1.6.21
+    ["sp_blitz_enable"] = { type = "int", value = 1, desc = "Enables Blitz", def = 1},
+    ["sp_blitz_starttime"] = { type = "int", value = 60, desc = "Start time for blitz (seconds)", def = 60},
+    ["sp_overtime_blitz_enable"] = { type = "int", value = 1, desc = "Enable blitz in overtime", def = 1},
+    ["sp_overtime_enable"] = { type = "int", value = 1, desc = "Enable overtime if score difrence is equal to 0", def = 1},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
@@ -66,12 +78,32 @@ gamerules.ValidateScriptScope();
 
 ::sp_reset_convars <- ResetSpCvars;
 ::sp_help <- function() {
-    printl("to change a value of a convar type: script sp_convar(new_value)\n");
-    error("sp_help\n");
-    printl("displays help for avaible convars\n");
-    error("sp_reset_convars\n");
-    printl("resets the convars to default values\n");
-    PrintSpCvars();
+    local str =
+    "to change a value of a convar type: script sp_convar(new_value)\n\n" +
+    "sp_help\n" +
+    "displays help for avaible convars\n\n" +
+    "sp_reset_convars\n" +
+    "resets the convars to default values\n\n";
+
+    foreach (key, val in streetpassConvars) {
+        str += key + " = " + val.value;
+        if (val.value != val.def)
+            str += " ( def. \"" + val.def + "\" )";
+        str += "\n" + val.desc + "\n\n";
+    }
+
+    printl(str);
+
+    //TODO: Fix cvars not printing corectly
+    //it looks like mixing error and printl might have to do something with it
+    //the solution above is just a bandaid with no colors :<
+
+    // printl("to change a value of a convar type: script sp_convar(new_value)\n");
+    // error("sp_help\n");
+    // printl("displays help for avaible convars\n");
+    // error("sp_reset_convars\n");
+    // printl("resets the convars to default values\n");
+    // PrintSpCvars();
 }
 
 ::SetSpCvar <- function(name, value) {
@@ -83,13 +115,21 @@ gamerules.ValidateScriptScope();
     switch (streetpassConvars[name].type) {
         case "int": {
             value = value.tointeger();
+            if(streetpassConvars[name].value == value)
+                return;
+
             streetpassConvars[name].value = value;
+            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "Streetpass cvar '" + name + "' changed to " + value);
             SetData("streetpassConvars", streetpassConvars);
             break;
         }
         case "float": {
             value = value.tofloat();
+            if(streetpassConvars[name].value == value)
+                return;
+
             streetpassConvars[name].value = value;
+            ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "Streetpass cvar '" + name + "' changed to " + value);
             SetData("streetpassConvars", streetpassConvars);
             break;
         }
@@ -300,7 +340,7 @@ printl("------------------------");
         if (ammo_type > 0)
             NetProps.SetPropIntArray(self, "m_iAmmo", 999, ammo_type);
 
-        //caber logic    
+        //caber logic
         local weapon_name = weapon.GetPrintName();
         if(weapon_name == "#TF_Weapon_StickBomb" && GetSpCvar("sp_demoman_caber_recharge_time") >= 0) {
             local detonated = NetProps.GetPropInt(weapon, "m_iDetonated")
@@ -317,7 +357,7 @@ printl("------------------------");
 
         if (GetSpCvar("sp_passive_reload") && weapon.GetClassname() == "tf_weapon_passtime_gun" && Time() - self.GetScriptScope().lastReload >= GetSpCvar("sp_passive_reload_delay")) {
             self.GetScriptScope().lastReload = Time();
-            
+
             for (local i = 0; i < MAX_WEAPONS; i++) {
                 local held_weapon = NetProps.GetPropEntityArray(self, "m_hMyWeapons", i);
                 if (held_weapon == null)
@@ -484,7 +524,7 @@ class ProtectionArea {
     function Enable() {
         if (this.isActive)
             return;
-    
+
         this.isActive = true;
         FireScriptEvent("sp_protection_enabled", {});
     }
@@ -516,7 +556,7 @@ class ProtectionArea {
 }
 
 ::EnableProtection <- function() {
-    defendersProtection.Enable();   
+    defendersProtection.Enable();
     attackersProtection.Enable();
 }
 
@@ -806,20 +846,43 @@ class ProtectionArea {
 
         roundWin.AcceptInput("RoundWin", "", null, null)
     }else{
-        isOvertime = true;
-        ActivateBlitz();
-        timer.AcceptInput("AddTime", "70", null, null);
-        timer.AcceptInput("Pause", "", null, null);
+        if(GetSpCvar("sp_overtime_enable") >= 1)
+        {
+            isOvertime = true;
+            if(GetSpCvar("sp_overtime_blitz_enable") >= 1)
+                ActivateBlitz(true);
+
+            timer.AcceptInput("AddTime", "70", null, null);
+            timer.AcceptInput("Pause", "", null, null);
+        }else
+            roundWin.AcceptInput("RoundWin", "", null, null)
     }
 }
-::ActivateBlitz <- function(){
-    if(isBlitz)
-        return;
+::ActivateBlitz <- function(force = false){
+    if(!force)
+        if(isBlitz || GetSpCvar("sp_blitz_enable") <= 0)
+            return;
+
+    NetProps.SetPropInt(passtimeLogic, "m_iBallSpawnCountdownSec", 1)
+    if(!isBlitz)
+        PrintStreetPASS("\x07FFFF00Blitz Active!");
 
     isBlitz = true;
-    NetProps.SetPropInt(passtimeLogic, "m_iBallSpawnCountdownSec", 1)
-    PrintStreetPASS("\x07FFFF00Blitz Active!");
 }
+
+::TimerThink <- function(){
+    local flSecondsRemaining = NetProps.GetPropFloat(self, "m_flTimerEndTime") - Time();
+
+    if(GetSpCvar("sp_blitz_enable") >= 1 &&
+    GetSpCvar("sp_blitz_starttime") >= flSecondsRemaining
+    && NetProps.GetPropInt(self, "m_nState") != 0) //setup state
+    {
+        ActivateBlitz();
+        //we remove the think this way
+        NetProps.SetPropString(self, "m_iszScriptThinkFunction", "");
+    }
+}
+AddThinkToEnt(timer, "TimerThink");
 
 local EventsID = UniqueString()
 getroottable()[EventsID] <-
@@ -1142,7 +1205,7 @@ getroottable()[EventsID] <-
 
         //we do this special check so we can swap teams correctly
         //the netprops of scores do not update until some time after so we need to check -1 of the max score ammount
-        if(isOvertime || 
+        if(isOvertime ||
             NetProps.GetPropInt(teams[scorer.GetTeam()], "m_nFlagCaptures") >= Convars.GetInt("tf_passtime_scores_per_round") - 1){
             local redScore = 0;
             local blueScore = 0;
@@ -1194,7 +1257,7 @@ getroottable()[EventsID] <-
         if(params.sound == "Game.Overtime" && !isOvertime)
             stopSound = true
 
-        if(params.sound == "Announcer.RoundBegins1seconds" && isOvertime) 
+        if(params.sound == "Announcer.RoundBegins1seconds" && isOvertime)
             stopSound = true
 
         if(stopSound) {
@@ -1337,7 +1400,6 @@ function OnPostSpawn()
     }
 
     EntityOutputs.AddOutput(timer, "OnFinished", "streetpass_script", "RunScriptCode", "HandleEndgame()", 0, -1)
-    EntityOutputs.AddOutput(timer, "On1minRemain", "streetpass_script", "RunScriptCode", "ActivateBlitz()", 0, -1)
     AddThinkToEnt(passtimeLogic, "StreetpassThink");
 }
 
