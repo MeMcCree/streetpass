@@ -1,7 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-const VERSION = "1.6.21";
+const VERSION = "1.6.22";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -12,11 +12,11 @@ Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 Convars.SetValue("tf_passtime_powerball_decayamount", 99999);
 Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
 
-/*  1.6.21 change list:
+/*  1.6.22 change list:
 
-    new convars: sp_blitz_enable, sp_blitz_starttime, sp_overtime_enable;
-    added in chat notiications on convar changes;
-    changed sp_help to correctly display convars;
+    fixed blitz activating if the round is over
+    *made half-zatoichi not be able to kill others (UNTESTED)
+    *fix steal overlay not properly clearing sometimes (UNTESTED)
 */
 
 // StreetPASS convars
@@ -860,8 +860,14 @@ class ProtectionArea {
 }
 ::ActivateBlitz <- function(force = false){
     if(!force)
-        if(isBlitz || GetSpCvar("sp_blitz_enable") <= 0)
+    {
+        local roundState =
+        GetRoundState() == Constants.ERoundState.GR_STATE_TEAM_WIN ||
+        GetRoundState() == Constants.ERoundState.GR_STATE_STALEMATE
+
+        if(isBlitz || GetSpCvar("sp_blitz_enable") <= 0 || roundState)
             return;
+    }
 
     NetProps.SetPropInt(passtimeLogic, "m_iBallSpawnCountdownSec", 1)
     if(!isBlitz)
@@ -1022,6 +1028,8 @@ getroottable()[EventsID] <-
                 local weapon = GivePlayerWeapon(player, "tf_weapon_rocketlauncher_fireball", 1178, held_weapon);
                 weapon.AddAttribute("item_meter_charge_rate", cooldown, 0);
                 AddThinkToEnt(weapon, "NoAirblast");
+            } else if (weapon_class == "tf_weapon_katana") {
+                held_weapon.AddAttribute("honorbound", casti2f(0), 0);
             } else {
                 if (!last_good_weapon)
                    last_good_weapon = held_weapon;
@@ -1137,7 +1145,7 @@ getroottable()[EventsID] <-
         local catcher = PlayerInstanceFromIndex(params.catcher);
         dontSwap = false;
 
-        ClientCommand.AcceptInput("Command", "r_screenoverlay off", catcher, null);
+        EntFireByHandle(ClientCommand, "Command", "r_screenoverlay off", 0.1, catcher, null);
 
         GoalAcceptInput("Enable", "");
 
@@ -1228,7 +1236,7 @@ getroottable()[EventsID] <-
         local vName = NetProps.GetPropString(victim, "m_szNetname");
         local aName = NetProps.GetPropString(attacker, "m_szNetname");
 
-        ClientCommand.AcceptInput("Command", "r_screenoverlay off", attacker, null);
+        EntFireByHandle(ClientCommand, "Command", "r_screenoverlay off", 0.1, attacker, null);
 
         GoalAcceptInput("Enable", "");
 
@@ -1265,7 +1273,7 @@ getroottable()[EventsID] <-
                 local player = PlayerInstanceFromIndex(i);
 
                 if(player != null)
-				    StopSoundOn(params.sound, player)
+                    StopSoundOn(params.sound, player)
             }
         }
 
