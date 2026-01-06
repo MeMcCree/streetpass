@@ -4,7 +4,7 @@ to run the gamemode on your PC or server.
 **Without them, the gamemode will *NOT* work!!!**  
 
 ## StreetPASS ConVars
-StreetPASS includes many ConVars to customize your gameplay experience
+StreetPASS includes many ConVars to customize your gameplay experience <br>
 Type `script sp_help()` into the game console for a list of all available StreetPASS ConVars
 
 ## StreetPASS as a Gamemode
