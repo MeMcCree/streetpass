@@ -13,7 +13,6 @@ without them the gamemode will <i><b>NOT</b></i> work!!!<br>
     <li>Red can swap thier roles with Blu by scoring the J.A.C.K into the swap zone</li>
     <li>First team to score max points or have more points when time runs out wins!</li>
 </ul>
-<br>
 
 <h1>StreetPASS Discord Server</h1>
 StreetPASS has an official discord server where <br>
