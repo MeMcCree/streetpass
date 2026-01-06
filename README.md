@@ -1,21 +1,31 @@
-<h1>StreetPASS</h1> 
+<h1>StreetPASS Github</h1>
+here you can get all the nesesary configs and scripts <br>
+to run the gamemode on your pc or server,<br>
+without them the gamemode will <i><b>NOT</b></i> work!!!<br>
 
-<b>StreetPASS is a gamemode for TF2 that takes 4v4 passtime and turns it 2v2</b>
+<h1>StreetPASS as a Gamemode</h1>
+<ul>
+    <li>Made in vscript</li>
+    <li>Primarly 2v2 asymmetrical gamemode where only 1 team at a time can score</li>
+    <li>Only demo and soldier avaible</li>
+    <li>Blu start as attackers that can score points</li>
+    <li>Red start as defenders that need to defend the goal</li>
+    <li>Red can swap thier roles with Blu by scoring the J.A.C.K into the swap zone</li>
+    <li>First team to score max points or have more points when time runs out wins!</li>
+</ul>
+<br>
 
-2 teams fight for glory in an attack\defend style game of passtime<br>
-one team tries to score while the other tries to defend<br>
-defenders can put the ball into a swap zone to change thier positon of defenders into attackers<br>
-first to 5 points wins<br>
+<h1>StreetPASS Discord Server</h1>
+StreetPASS has an official discord server where <br>
+you can play the gamemode on an official tf2 game server,<br>
+help test new maps for the gamemode,<br>
+and talk about everything StreetPASS related!<br>
+https://discord.gg/wpKs55tEPc
+<br>
 
-<h2>Gameplay differences:</h2>
-    -infinite health and reserve ammo <br>
-    -attack\defend style gameplay <br>
-    -smaller team sizes (duh) <br>
-    -smaller maps <br>
-    -uses vscript so it can be hosted on steam networking<br>
-    
-<h2>Avaible Classes:</h2>
-    - Soldier <br>
-    - Demoman <br>
-    - Medic <i>(Experimental)</i> <br>
-    - Pyro <i>(Experimental)</i><br>
+<h1>StreetPASS Mapping Wiki</h1>
+this wiki includes everything you need to know <br>
+to start making StreetPASS maps! <br>
+If you need any additional help dont be scared to <br>
+hop in our discord and ask a question <br>
+https://github.com/MeMcCree/streetpass/wiki
