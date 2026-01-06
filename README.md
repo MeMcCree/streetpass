@@ -26,8 +26,8 @@ https://discord.gg/wpKs55tEPc
 
 ## StreetPASS Mapping Wiki
 This wiki includes everything you need to know  
-to start making StreetPASS maps!
-If you need any additional help
+to start making StreetPASS maps! <br>
+If you need any additional help <br>
 dont be afraid to join our Discord and ask a question
 
 https://github.com/MeMcCree/streetpass/wiki
