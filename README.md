@@ -1,30 +1,33 @@
-<h1>StreetPASS Github</h1>
-here you can get all the nesesary configs and scripts <br>
-to run the gamemode on your pc or server,<br>
-without them the gamemode will <i><b>NOT</b></i> work!!!<br>
+## StreetPASS GitHub
+Here you can get all the necessary configs and scripts  
+to run the gamemode on your PC or server.  
+**Without them, the gamemode will *NOT* work!!!**  
 
-<h1>StreetPASS as a Gamemode</h1>
-<ul>
-    <li>Made in vscript</li>
-    <li>Primarly 2v2 asymmetrical gamemode where only 1 team at a time can score</li>
-    <li>Only demo and soldier avaible</li>
-    <li>Blu start as attackers that can score points</li>
-    <li>Red start as defenders that need to defend the goal</li>
-    <li>Red can swap thier roles with Blu by scoring the J.A.C.K into the swap zone</li>
-    <li>First team to score max points or have more points when time runs out wins!</li>
-</ul>
+## StreetPASS ConVars
+StreetPASS includes many ConVars to customize your gameplay experience
+Type `script sp_help()` into the game console for a list of all available StreetPASS ConVars
 
-<h1>StreetPASS Discord Server</h1>
-StreetPASS has an official discord server where <br>
-you can play the gamemode on an official tf2 game server,<br>
-help test new maps for the gamemode,<br>
-and talk about everything StreetPASS related!<br>
+## StreetPASS as a Gamemode
+Made in VScript <br>
+Primarily a 2v2 asymmetrical gamemode where only one team at a time can score  
+Only Demoman and Soldier are available
+- **BLU** starts as the attacking team that can score points  
+- **RED** starts as the defending team that must protect the goal  
+- **RED can swap roles with BLU** by scoring the J.A.C.K. into the **swap zone** 
+- The first team to reach the **max score**, or have **more points** when time runs out, wins!
+
+## StreetPASS Discord Server
+StreetPASS has an official Discord server where you can:
+- Play the gamemode on an official TF2 game server  
+- Help test new maps for the gamemode  
+- Talk about everything StreetPASS-related!
+
 https://discord.gg/wpKs55tEPc
-<br>
 
-<h1>StreetPASS Mapping Wiki</h1>
-this wiki includes everything you need to know <br>
-to start making StreetPASS maps! <br>
-If you need any additional help dont be scared to <br>
-hop in our discord and ask a question <br>
+## StreetPASS Mapping Wiki
+This wiki includes everything you need to know  
+to start making StreetPASS maps!
+If you need any additional help
+dont be afraid to join our Discord and ask a question
+
 https://github.com/MeMcCree/streetpass/wiki
