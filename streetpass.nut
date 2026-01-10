@@ -45,12 +45,13 @@ Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
     ["sp_overtime_blitz_enable"] = { type = "int", value = 1, desc = "Enable blitz in overtime", def = 1},
     ["sp_overtime_enable"] = { type = "int", value = 1, desc = "Enable overtime if score difrence is equal to 0", def = 1},
     //1.7
-    ["sp_dm_meter_enable"] = { type = "int", value = 1, desc = "Enable dm meter", def = 1},
-    ["sp_dm_meter_regen_time"] = { type = "float", value = 5.0, desc = "Time for dm meter to start regenerating", def = 5.0},
-    ["sp_dm_meter_regen_rate"] = { type = "float", value = 1.0, desc = "Rate at which dm meter regenerates", def = 1.0},
-    ["sp_dm_meter_recharge_amount"] = { type = "float", value = 150.0, desc = "Amount of meter to recharge after hitting the threshold", def = 150.0},
-    ["sp_dm_meter_recharge_rate"] = { type = "float", value = 2.0, desc = "Rate of recharge", def = 2.0},
-    ["sp_dm_meter_drop_threshold"] = { type = "float", value = 100.0, desc = "Threshold for dropping the ball", def = 100.0},
+    ["sp_stamina_enable"] = { type = "int", value = 1, desc = "Enable stamina", def = 1},
+    ["sp_stamina_regen_time"] = { type = "float", value = 5.0, desc = "Time for stamina to start regenerating", def = 5.0},
+    ["sp_stamina_regen_rate"] = { type = "float", value = 1.0, desc = "Rate at which stamina regenerates", def = 1.0},
+    ["sp_stamina_recharge_amount"] = { type = "float", value = 150.0, desc = "Amount of meter to recharge after hitting the threshold", def = 150.0},
+    ["sp_stamina_recharge_rate"] = { type = "float", value = 2.0, desc = "Rate of recharge", def = 2.0},
+    ["sp_stamina_drop_threshold"] = { type = "float", value = 100.0, desc = "Threshold for dropping the ball", def = 100.0},
+    ["sp_stamina_nojack_dmg_coef"] = { type = "float", value = 0.5, desc = "How much stamina to take for players not holding jack", def = 0.5},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
@@ -434,37 +435,37 @@ printl("------------------------");
 
     self.SetScriptOverlayMaterial("streetpass/" + overlay);
 
-    if (GetSpCvar("sp_dm_meter_enable") && self.GetScriptScope().dm_meter_text && self.GetScriptScope().dm_meter_text.IsValid()) {
-        local dm_meter = self.GetScriptScope().dm_meter;
-        self.GetScriptScope().dm_meter_text.AcceptInput("SetText", dm_meter.tointeger().tostring(), null, null);
-        if (dm_meter < self.GetScriptScope().dm_meter_max / 4.0) {
-            self.GetScriptScope().dm_meter_text.AcceptInput("SetColor", "255 0 0", null, null);
-        } else if (dm_meter < self.GetScriptScope().dm_meter_max / 2.0) {
-            self.GetScriptScope().dm_meter_text.AcceptInput("SetColor", "255 255 0", null, null);
+    if (GetSpCvar("sp_stamina_enable") && self.GetScriptScope().stamina_text && self.GetScriptScope().stamina_text.IsValid()) {
+        local stamina = self.GetScriptScope().stamina;
+        self.GetScriptScope().stamina_text.AcceptInput("SetText", stamina.tointeger().tostring(), null, null);
+        if (stamina < self.GetScriptScope().stamina_max / 4.0) {
+            self.GetScriptScope().stamina_text.AcceptInput("SetColor", "255 0 0", null, null);
+        } else if (stamina < self.GetScriptScope().stamina_max / 2.0) {
+            self.GetScriptScope().stamina_text.AcceptInput("SetColor", "255 255 0", null, null);
         } else {
-            self.GetScriptScope().dm_meter_text.AcceptInput("SetColor", "0 255 0", null, null);
+            self.GetScriptScope().stamina_text.AcceptInput("SetColor", "0 255 0", null, null);
         }
 
-        if (dm_meter < GetSpCvar("sp_dm_meter_drop_threshold")) {
+        if (stamina < GetSpCvar("sp_stamina_drop_threshold")) {
             self.AddCustomAttribute("cannot pick up intelligence", 1, -1);
         } else {
             self.RemoveCustomAttribute("cannot pick up intelligence");
         }
 
-        if (Time() - self.GetScriptScope().dm_meter_last_hit > GetSpCvar("sp_dm_meter_regen_time") || !weapon || weapon.GetClassname() != "tf_weapon_passtime_gun" || self.GetScriptScope().dm_meter_recharging) {
-            if (Time() - self.GetScriptScope().dm_meter_last_regen > 0.05) {
-                local rate = GetSpCvar("sp_dm_meter_regen_rate");
-                if (self.GetScriptScope().dm_meter_recharging) {
-                    rate = GetSpCvar("sp_dm_meter_recharge_rate");
-                    if (self.GetScriptScope().dm_meter + rate >= GetSpCvar("sp_dm_meter_recharge_amount")) {
-                        self.GetScriptScope().dm_meter_recharging = false;
+        if (Time() - self.GetScriptScope().stamina_last_hit > GetSpCvar("sp_stamina_regen_time") || !weapon || weapon.GetClassname() != "tf_weapon_passtime_gun" || self.GetScriptScope().stamina_recharging) {
+            if (Time() - self.GetScriptScope().stamina_last_regen > 0.05) {
+                local rate = GetSpCvar("sp_stamina_regen_rate");
+                if (self.GetScriptScope().stamina_recharging) {
+                    rate = GetSpCvar("sp_stamina_recharge_rate");
+                    if (self.GetScriptScope().stamina + rate >= GetSpCvar("sp_stamina_recharge_amount")) {
+                        self.GetScriptScope().stamina_recharging = false;
                     }
                 }
-                self.GetScriptScope().dm_meter = self.GetScriptScope().dm_meter + rate;
-                if (self.GetScriptScope().dm_meter > self.GetScriptScope().dm_meter_max) {
-                    self.GetScriptScope().dm_meter = self.GetScriptScope().dm_meter_max;
+                self.GetScriptScope().stamina = self.GetScriptScope().stamina + rate;
+                if (self.GetScriptScope().stamina > self.GetScriptScope().stamina_max) {
+                    self.GetScriptScope().stamina = self.GetScriptScope().stamina_max;
                 }
-                self.GetScriptScope().dm_meter_last_regen = Time();
+                self.GetScriptScope().stamina_last_regen = Time();
             }
         }
     }
@@ -962,7 +963,7 @@ getroottable()[EventsID] <-
         if (ammo)
             ammo.Destroy();
 
-        player.GetScriptScope().dm_meter_text.Destroy();
+        player.GetScriptScope().stamina_text.Destroy();
 
         player.SetScriptOverlayMaterial("");
     }
@@ -975,21 +976,21 @@ getroottable()[EventsID] <-
         player.GetScriptScope().lastReload <- Time();
         AddThinkToEnt(player, "PlayerThink");
 
-        player.GetScriptScope().dm_meter_last_hit <- Time();
-        player.GetScriptScope().dm_meter_last_regen <- Time();
-        player.GetScriptScope().dm_meter_recharging <- false;
-        player.GetScriptScope().dm_meter_max <- 500;
-        player.GetScriptScope().dm_meter <- player.GetScriptScope().dm_meter_max;
+        player.GetScriptScope().stamina_last_hit <- Time();
+        player.GetScriptScope().stamina_last_regen <- Time();
+        player.GetScriptScope().stamina_recharging <- false;
+        player.GetScriptScope().stamina_max <- 500;
+        player.GetScriptScope().stamina <- player.GetScriptScope().stamina_max;
         
-        player.GetScriptScope().dm_meter_text <- SpawnEntityFromTable("point_worldtext", {
-            origin       = player.GetOrigin() + Vector(0, 0, 8)
+        player.GetScriptScope().stamina_text <- SpawnEntityFromTable("point_worldtext", {
+            origin       = player.GetOrigin() + Vector(0, 0, 16)
             angles       = QAngle(0, 0, 0)
             textsize  = 10
             orientation = 1
         })
 
-        player.GetScriptScope().dm_meter_text.AcceptInput("SetParent", "!activator", player, null);
-        player.GetScriptScope().dm_meter_text.AcceptInput("SetParentAttachmentMaintainOffset", "head", player, null);
+        player.GetScriptScope().stamina_text.AcceptInput("SetParent", "!activator", player, null);
+        player.GetScriptScope().stamina_text.AcceptInput("SetParentAttachmentMaintainOffset", "head", player, null);
     }
 
     OnGameEvent_player_team = function (params) {
@@ -1153,15 +1154,20 @@ getroottable()[EventsID] <-
         if (IsPlayerValid(victim) && IsPlayerValid(attacker) && victim != attacker) {
             local weapon = victim.GetActiveWeapon();
 
+            local dmg = 0;
             if (weapon && weapon.GetClassname() == "tf_weapon_passtime_gun") {
-                victim.GetScriptScope().dm_meter_last_hit <- Time();
-                victim.GetScriptScope().dm_meter = victim.GetScriptScope().dm_meter - params.damage;
-                if (victim.GetScriptScope().dm_meter < 0) {
-                    victim.GetScriptScope().dm_meter = 0;
-                }
-                if (victim.GetScriptScope().dm_meter <= GetSpCvar("sp_dm_meter_drop_threshold")) {
-                    victim.GetScriptScope().dm_meter_recharging = true;
-                }
+                dmg = params.damage;
+            } else {
+                dmg = params.damage * GetSpCvar("sp_stamina_nojack_dmg_coef");
+            }
+
+            victim.GetScriptScope().stamina_last_hit <- Time();
+            victim.GetScriptScope().stamina = victim.GetScriptScope().stamina - dmg;
+            if (victim.GetScriptScope().stamina < 0) {
+                victim.GetScriptScope().stamina = 0;
+            }
+            if (victim.GetScriptScope().stamina <= GetSpCvar("sp_stamina_drop_threshold")) {
+                victim.GetScriptScope().stamina_recharging = true;
             }
         }
 
