@@ -46,6 +46,7 @@ Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
     ["sp_overtime_enable"] = { type = "int", value = 1, desc = "Enable overtime if score difrence is equal to 0", def = 1},
     //1.7
     ["sp_stamina_enable"] = { type = "int", value = 1, desc = "Enable stamina", def = 1},
+    ["sp_stamina_max"] = { type = "float", value = 300.0, desc = "Max amount of stamina", def = 300.0},
     ["sp_stamina_regen_time"] = { type = "float", value = 5.0, desc = "Time for stamina to start regenerating", def = 5.0},
     ["sp_stamina_regen_rate"] = { type = "float", value = 1.0, desc = "Rate at which stamina regenerates", def = 1.0},
     ["sp_stamina_recharge_amount"] = { type = "float", value = 150.0, desc = "Amount of meter to recharge after hitting the threshold", def = 150.0},
@@ -248,6 +249,7 @@ const STAT_LENGTH = 6;
 
 ::playerTable <- {}
 ::sideSwaps <- 0;
+::staminaEntities <- {};
 //------------------------
 
 printl("------------------------");
@@ -296,6 +298,26 @@ printl("------------------------");
     }
 
     return playerTable[playerIndex][stat];
+}
+
+::AttachStaminaTextToPlayer <- function(player) {
+    if (!(player.entindex() in staminaEntities)) {
+        staminaEntities[player.entindex()] <- SpawnEntityFromTable("point_worldtext", {
+            origin       = player.GetOrigin() + Vector(0, 0, 96)
+            angles       = QAngle(0, 0, 0)
+            textsize  = 10
+            orientation = 1
+        })
+
+        staminaEntities[player.entindex()].AcceptInput("SetParent", "!activator", player, null);
+    }
+}
+
+::GetStaminaText <- function(player) {
+    if (!(player.entindex() in staminaEntities)) {
+        return 0;
+    }
+    return staminaEntities[player.entindex()];
 }
 
 ::IsPlayerValid <- function (player) {
@@ -435,15 +457,16 @@ printl("------------------------");
 
     self.SetScriptOverlayMaterial("streetpass/" + overlay);
 
-    if (GetSpCvar("sp_stamina_enable") && self.GetScriptScope().stamina_text && self.GetScriptScope().stamina_text.IsValid()) {
+    local stamina_text = GetStaminaText(self);
+    if (GetSpCvar("sp_stamina_enable") && stamina_text && stamina_text.IsValid()) {
         local stamina = self.GetScriptScope().stamina;
-        self.GetScriptScope().stamina_text.AcceptInput("SetText", stamina.tointeger().tostring(), null, null);
+        stamina_text.AcceptInput("SetText", stamina.tointeger().tostring(), null, null);
         if (stamina < self.GetScriptScope().stamina_max / 4.0) {
-            self.GetScriptScope().stamina_text.AcceptInput("SetColor", "255 0 0", null, null);
+            stamina_text.AcceptInput("SetColor", "255 0 0", null, null);
         } else if (stamina < self.GetScriptScope().stamina_max / 2.0) {
-            self.GetScriptScope().stamina_text.AcceptInput("SetColor", "255 255 0", null, null);
+            stamina_text.AcceptInput("SetColor", "255 255 0", null, null);
         } else {
-            self.GetScriptScope().stamina_text.AcceptInput("SetColor", "0 255 0", null, null);
+            stamina_text.AcceptInput("SetColor", "0 255 0", null, null);
         }
 
         if (stamina < GetSpCvar("sp_stamina_drop_threshold")) {
@@ -963,7 +986,6 @@ getroottable()[EventsID] <-
         if (ammo)
             ammo.Destroy();
 
-        player.GetScriptScope().stamina_text.Destroy();
 
         player.SetScriptOverlayMaterial("");
     }
@@ -979,18 +1001,12 @@ getroottable()[EventsID] <-
         player.GetScriptScope().stamina_last_hit <- Time();
         player.GetScriptScope().stamina_last_regen <- Time();
         player.GetScriptScope().stamina_recharging <- false;
-        player.GetScriptScope().stamina_max <- 500;
+        player.GetScriptScope().stamina_max <- GetSpCvar("sp_stamina_max");
         player.GetScriptScope().stamina <- player.GetScriptScope().stamina_max;
-        
-        player.GetScriptScope().stamina_text <- SpawnEntityFromTable("point_worldtext", {
-            origin       = player.GetOrigin() + Vector(0, 0, 16)
-            angles       = QAngle(0, 0, 0)
-            textsize  = 10
-            orientation = 1
-        })
 
-        player.GetScriptScope().stamina_text.AcceptInput("SetParent", "!activator", player, null);
-        player.GetScriptScope().stamina_text.AcceptInput("SetParentAttachmentMaintainOffset", "head", player, null);
+        AttachStaminaTextToPlayer(player);
+
+        //player.GetScriptScope().stamina_text.AcceptInput("SetParentAttachmentMaintainOffset", "head", player, null);*/
     }
 
     OnGameEvent_player_team = function (params) {
@@ -1151,7 +1167,7 @@ getroottable()[EventsID] <-
             }
         }
 
-        if (IsPlayerValid(victim) && IsPlayerValid(attacker) && victim != attacker) {
+        if (IsPlayerValid(victim) && IsPlayerValid(attacker) && victim != attacker && victim.GetTeam() != attacker.GetTeam()) {
             local weapon = victim.GetActiveWeapon();
 
             local dmg = 0;
