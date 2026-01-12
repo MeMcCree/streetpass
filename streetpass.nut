@@ -1432,21 +1432,28 @@ getroottable()[EventsID] <-
 
     OnScriptEvent_sp_swap_sides = function (params) {
         local swaper = PlayerInstanceFromIndex(params.swaper);
+
+        params.swapzone.AcceptInput("FireUser1", "", swaper, params.swapzone);
+        if(params.old_defense == RED)
+        {
+            params.swapzone.AcceptInput("FireUser2", "", swaper, params.swapzone);
+        }
+        else
+        {
+            params.swapzone.AcceptInput("FireUser3", "", swaper, params.swapzone);
+        }
+
         for (local i = 0; i < swapZoneVisuals.len(); i++) {
             local visual = swapZoneVisuals[i];
             visual.SetAbsOrigin(Vector(params.ball_pos.x, params.ball_pos.y, visual.GetOrigin().z));
             visual.AcceptInput("FireUser1", "", swaper, params.swapzone);
-            params.swapzone.AcceptInput("FireUser1", "", swaper, params.swapzone);
-            //User2 and User3 are set up for team related stuff
             if(params.old_defense == RED)
             {
                 visual.AcceptInput("FireUser2", "", swaper, params.swapzone);
-                params.swapzone.AcceptInput("FireUser2", "", swaper, params.swapzone);
             }
             else
             {
                 visual.AcceptInput("FireUser3", "", swaper, params.swapzone);
-                params.swapzone.AcceptInput("FireUser3", "", swaper, params.swapzone);
             }
         }
     }
