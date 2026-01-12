@@ -1,7 +1,7 @@
 //Streetpass gamemode - made by BtC/BlaxorTheCat https://steamcommunity.com/id/BlaxorTheCat/ and Envy https://steamcommunity.com/id/Envy-Chan/
 //maps using this gamemode use the sp_ prefix
 
-const VERSION = "1.7-stam";
+const VERSION = "1.7.1-stam";
 const SWAP_SOUND = "coach/coach_look_here.wav";
 PrecacheSound(SWAP_SOUND);
 
@@ -52,7 +52,8 @@ Convars.SetValue("tf_passtime_overtime_idle_sec", 99999);
     ["sp_stamina_recharge_amount"] = { type = "float", value = 150.0, desc = "Amount of meter to recharge after hitting the threshold", def = 150.0},
     ["sp_stamina_recharge_rate"] = { type = "float", value = 2.0, desc = "Rate of recharge", def = 2.0},
     ["sp_stamina_drop_threshold"] = { type = "float", value = 100.0, desc = "Threshold for dropping the ball", def = 100.0},
-    ["sp_stamina_nojack_dmg_coef"] = { type = "float", value = 0.5, desc = "How much stamina to take for players not holding jack", def = 0.5},
+    ["sp_stamina_nojack_dmg_mult"] = { type = "float", value = 0.5, desc = "How much stamina to take for players not holding jack", def = 0.5},
+    ["sp_stamina_airshot_mult"] = { type = "float", value = 1.35, desc = "How much stamina to take for players in air", def = 1.35},
 };
 
 ::gamerules <- Entities.FindByClassname(null, "tf_gamerules");
@@ -245,7 +246,8 @@ const STAT_STEAL = 2;
 const STAT_INTERCEPT = 3;
 const STAT_SWAP = 4;
 const STAT_KILLSTREAK = 5;
-const STAT_LENGTH = 6;
+const STAT_AIRSHOT = 6;
+const STAT_LENGTH = 7;
 
 ::playerTable <- {}
 ::sideSwaps <- 0;
@@ -305,7 +307,7 @@ printl("------------------------");
         staminaEntities[player.entindex()] <- SpawnEntityFromTable("point_worldtext", {
             origin       = player.GetOrigin() + Vector(0, 0, 96)
             angles       = QAngle(0, 0, 0)
-            textsize  = 10
+            textsize  = 16
             orientation = 1
         })
 
@@ -461,9 +463,9 @@ printl("------------------------");
     if (GetSpCvar("sp_stamina_enable") && stamina_text && stamina_text.IsValid()) {
         local stamina = self.GetScriptScope().stamina;
         stamina_text.AcceptInput("SetText", stamina.tointeger().tostring(), null, null);
-        if (stamina < self.GetScriptScope().stamina_max / 4.0) {
+        if (stamina <= GetSpCvar("sp_stamina_drop_threshold")) {
             stamina_text.AcceptInput("SetColor", "255 0 0", null, null);
-        } else if (stamina < self.GetScriptScope().stamina_max / 2.0) {
+        } else if (stamina <= self.GetScriptScope().stamina_max / 2.0) {
             stamina_text.AcceptInput("SetColor", "255 255 0", null, null);
         } else {
             stamina_text.AcceptInput("SetColor", "0 255 0", null, null);
@@ -1044,6 +1046,7 @@ getroottable()[EventsID] <-
             local intercepts = GetStat(players[i], STAT_INTERCEPT);
             local steals = GetStat(players[i], STAT_STEAL);
             local swaps = GetStat(players[i], STAT_SWAP);
+            local airshots = GetStat(players[i], STAT_AIRSHOT);
 
             local team = "FFFF00";
             if (player.GetTeam() == RED)
@@ -1052,7 +1055,7 @@ getroottable()[EventsID] <-
                 team = "99CCFF";
 
             ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK,
-                "\x07"+team+pName+"\x07FFFF00 | Scores: "+scores+"\x07FFFF00 | Assists: "+assists+"\x07FFFF00 | Intercepts: "+intercepts+"\x07FFFF00 | Steals: "+steals+" | Swaps: "+swaps);
+                "\x07"+team+pName+"\x07FFFF00 | Scores: "+scores+"\x07FFFF00 | Assists: "+assists+"\x07FFFF00 | Intercepts: "+intercepts+"\x07FFFF00 | Steals: "+steals+" | Swaps: "+swaps+" | Airshots: "+airshots);
         }
         ClientPrint(null, Constants.EHudNotify.HUD_PRINTTALK, "\x07FFFF00Side swaps: "+sideSwaps);
 
@@ -1170,12 +1173,36 @@ getroottable()[EventsID] <-
         if (IsPlayerValid(victim) && IsPlayerValid(attacker) && victim != attacker && victim.GetTeam() != attacker.GetTeam()) {
             local weapon = victim.GetActiveWeapon();
 
-            local dmg = 0;
-            if (weapon && weapon.GetClassname() == "tf_weapon_passtime_gun") {
-                dmg = params.damage;
-            } else {
-                dmg = params.damage * GetSpCvar("sp_stamina_nojack_dmg_coef");
+            local mult = 1.0;
+            if (!weapon || weapon.GetClassname() != "tf_weapon_passtime_gun") {
+                mult = mult * GetSpCvar("sp_stamina_nojack_dmg_mult");
             }
+
+            local att_weapon = params.weapon;
+            printl(att_weapon.GetName());
+            if (att_weapon && att_weapon.GetAttribute("mod crit while airborne", -1.0) != -1.0 && attacker.InAirDueToExplosion()) {
+                mult = mult * 3.0;
+            } else if (victim.InAirDueToExplosion() && att_weapon && !att_weapon.IsMeleeWeapon()) {
+                local pos = params.damage_position;
+                local trace =
+                {
+                    start   = pos
+                    end     = pos
+                    hullmin = Vector(-4, -4, -4)
+                    hullmax = Vector(4, 4, 4)
+                    ignore = attacker
+                }
+                TraceHull(trace)
+
+                if (trace.hit && trace.enthit == victim) {
+                    mult = mult * GetSpCvar("sp_stamina_airshot_mult");
+                    params.damage_type = params.damage_type & ~Constants.FDmgType.DMG_SLOWBURN;
+                    DebugDrawBox(trace.startpos, trace.hullmin, trace.hullmax, 0, 255, 0, 255, 10);
+                    IncStat(attacker.entindex(), STAT_AIRSHOT);
+                }
+            }
+
+            local dmg = params.damage * mult;
 
             victim.GetScriptScope().stamina_last_hit <- Time();
             victim.GetScriptScope().stamina = victim.GetScriptScope().stamina - dmg;
